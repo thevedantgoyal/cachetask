@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Paperclip, Image as ImageIcon, Loader2, Upload, XCircle } from "lucide-react";
+import { X, Paperclip, Image as ImageIcon, Loader2, XCircle, ChevronDown, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useUserTasks, useCreateContribution } from "@/hooks/useContributions";
 import { useFileUpload } from "@/hooks/useFileUpload";
 import { useToast } from "@/hooks/use-toast";
-
 interface AddWorkUpdateModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -140,21 +139,31 @@ export const AddWorkUpdateModal = ({ isOpen, onClose }: AddWorkUpdateModalProps)
                 </div>
 
                 {/* Task Select */}
-                <div>
+                <div className="relative">
                   <select
                     value={selectedTask}
                     onChange={(e) => setSelectedTask(e.target.value)}
                     disabled={tasksLoading}
-                    className="w-full p-4 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer"
+                    className="w-full p-4 pr-10 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer"
                   >
-                    <option value="">Link to Task (Optional)</option>
+                    <option value="">Select Ongoing Task (Optional)</option>
                     {tasks?.map((task) => (
                       <option key={task.id} value={task.id}>
-                        {task.title}
+                        {task.project_name ? `[${task.project_name}] ` : ""}{task.title}
                       </option>
                     ))}
                   </select>
+                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground pointer-events-none" />
+                  {tasksLoading && (
+                    <Loader2 className="absolute right-10 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground animate-spin" />
+                  )}
                 </div>
+                {selectedTask && tasks?.find(t => t.id === selectedTask) && (
+                  <div className="flex items-center gap-2 px-3 py-2 bg-primary/10 rounded-lg text-sm text-primary">
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Linked to: {tasks.find(t => t.id === selectedTask)?.title}</span>
+                  </div>
+                )}
 
                 {/* Description */}
                 <div>

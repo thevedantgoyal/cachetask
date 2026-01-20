@@ -129,14 +129,28 @@ export const useUserTasks = () => {
 
       if (!profile) return [];
 
+      // Fetch ongoing tasks (not completed) assigned to this user with project info
       const { data, error } = await supabase
         .from("tasks")
-        .select("id, title")
+        .select(`
+          id, 
+          title,
+          status,
+          projects (
+            name
+          )
+        `)
         .eq("assigned_to", profile.id)
+        .neq("status", "completed")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      return data || [];
+      return (data || []).map((task) => ({
+        id: task.id,
+        title: task.title,
+        status: task.status,
+        project_name: task.projects?.name || null,
+      }));
     },
     enabled: !!user,
   });
