@@ -1,6 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Settings, Plus } from "lucide-react";
+import { Settings, Plus, Shield } from "lucide-react";
+import { Link } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { TaskCard } from "@/components/cards/TaskCard";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { BottomNav } from "@/components/layout/BottomNav";
@@ -50,9 +53,47 @@ const itemVariants = {
 };
 
 const Index = () => {
+  const { user } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [profileName, setProfileName] = useState<string | null>(null);
   const dailyProgress = 60;
-  const userName = "Alex";
+
+  useEffect(() => {
+    const checkAdminAndProfile = async () => {
+      if (!user) return;
+
+      // Check if admin
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("role", "admin")
+        .maybeSingle();
+
+      setIsAdmin(!!roleData);
+
+      // Get profile name
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("user_id", user.id)
+        .single();
+
+      if (profileData) {
+        setProfileName(profileData.full_name.split(" ")[0]);
+      }
+    };
+
+    checkAdminAndProfile();
+  }, [user]);
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 18) return "Good afternoon";
+    return "Good evening";
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -60,9 +101,20 @@ const Index = () => {
         {/* Header */}
         <header className="flex items-center justify-between py-2">
           <h2 className="text-lg font-semibold">Home</h2>
-          <button className="p-2 rounded-full hover:bg-muted transition-colors">
-            <Settings className="w-5 h-5 text-muted-foreground" />
-          </button>
+          <div className="flex items-center gap-1">
+            {isAdmin && (
+              <Link
+                to="/admin"
+                className="p-2 rounded-full hover:bg-muted transition-colors"
+                title="Admin Dashboard"
+              >
+                <Shield className="w-5 h-5 text-primary" />
+              </Link>
+            )}
+            <button className="p-2 rounded-full hover:bg-muted transition-colors">
+              <Settings className="w-5 h-5 text-muted-foreground" />
+            </button>
+          </div>
         </header>
 
         <motion.div
@@ -74,7 +126,7 @@ const Index = () => {
           {/* Greeting */}
           <motion.div variants={itemVariants}>
             <h1 className="text-2xl font-display font-bold">
-              Good morning, {userName}
+              {getGreeting()}, {profileName || "there"}
             </h1>
           </motion.div>
 

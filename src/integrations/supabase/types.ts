@@ -438,6 +438,10 @@ export type Database = {
         Args: { _employee_user_id: string; _manager_user_id: string }
         Returns: boolean
       }
+      setup_first_admin: {
+        Args: { _setup_code: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "employee" | "team_lead" | "manager" | "hr" | "admin"
