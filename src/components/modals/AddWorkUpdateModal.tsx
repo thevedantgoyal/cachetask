@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Paperclip, Image, Loader2 } from "lucide-react";
+import { X, Paperclip, Image as ImageIcon, Loader2, Upload, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useUserTasks, useCreateContribution } from "@/hooks/useContributions";
+import { useFileUpload } from "@/hooks/useFileUpload";
 import { useToast } from "@/hooks/use-toast";
 
 interface AddWorkUpdateModalProps {
@@ -14,10 +15,51 @@ export const AddWorkUpdateModal = ({ isOpen, onClose }: AddWorkUpdateModalProps)
   const [selectedTask, setSelectedTask] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [evidenceUrl, setEvidenceUrl] = useState<string | null>(null);
+  const [evidenceType, setEvidenceType] = useState<string | null>(null);
   
   const { data: tasks, isLoading: tasksLoading } = useUserTasks();
   const createContribution = useCreateContribution();
+  const { uploadFile, uploading } = useFileUpload();
   const { toast } = useToast();
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: "file" | "image") => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Maximum file size is 10MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const url = await uploadFile(file);
+      if (url) {
+        setEvidenceUrl(url);
+        setEvidenceType(type === "image" ? "image" : file.type);
+        toast({
+          title: "File uploaded",
+          description: "Evidence attached successfully",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Upload failed",
+        description: "Please try again",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const removeEvidence = () => {
+    setEvidenceUrl(null);
+    setEvidenceType(null);
+  };
 
   const handleSubmit = async () => {
     if (!title.trim() || !description.trim()) return;
@@ -27,6 +69,8 @@ export const AddWorkUpdateModal = ({ isOpen, onClose }: AddWorkUpdateModalProps)
         title: title.trim(),
         description: description.trim(),
         taskId: selectedTask || undefined,
+        evidenceUrl: evidenceUrl || undefined,
+        evidenceType: evidenceType || undefined,
       });
       
       toast({
@@ -37,6 +81,8 @@ export const AddWorkUpdateModal = ({ isOpen, onClose }: AddWorkUpdateModalProps)
       setSelectedTask("");
       setTitle("");
       setDescription("");
+      setEvidenceUrl(null);
+      setEvidenceType(null);
       onClose();
     } catch (error) {
       toast({
@@ -121,26 +167,74 @@ export const AddWorkUpdateModal = ({ isOpen, onClose }: AddWorkUpdateModalProps)
                   />
                 </div>
 
+                {/* Evidence Preview */}
+                {evidenceUrl && (
+                  <div className="relative bg-muted rounded-xl p-4">
+                    <button
+                      onClick={removeEvidence}
+                      className="absolute top-2 right-2 p-1 bg-destructive text-destructive-foreground rounded-full"
+                    >
+                      <XCircle className="w-4 h-4" />
+                    </button>
+                    {evidenceType?.startsWith("image") ? (
+                      <img
+                        src={evidenceUrl}
+                        alt="Evidence"
+                        className="max-h-40 rounded-lg mx-auto"
+                      />
+                    ) : (
+                      <div className="flex items-center gap-3">
+                        <Paperclip className="w-5 h-5 text-muted-foreground" />
+                        <span className="text-sm truncate">Evidence attached</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Attachment buttons */}
-                <div className="flex gap-4">
-                  <button className="flex flex-col items-center gap-2 p-4 rounded-xl bg-muted hover:bg-muted/80 transition-colors">
-                    <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center">
-                      <Paperclip className="w-5 h-5 text-foreground" />
-                    </div>
-                    <span className="text-sm font-medium">Attach Evidence</span>
-                  </button>
-                  <button className="flex flex-col items-center gap-2 p-4 rounded-xl bg-muted hover:bg-muted/80 transition-colors">
-                    <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center">
-                      <Image className="w-5 h-5 text-foreground" />
-                    </div>
-                    <span className="text-sm font-medium">Attach Image</span>
-                  </button>
-                </div>
+                {!evidenceUrl && (
+                  <div className="flex gap-4">
+                    <label className="flex-1 flex flex-col items-center gap-2 p-4 rounded-xl bg-muted hover:bg-muted/80 transition-colors cursor-pointer">
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept=".pdf,.doc,.docx,.xls,.xlsx,.txt"
+                        onChange={(e) => handleFileUpload(e, "file")}
+                        disabled={uploading}
+                      />
+                      <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center">
+                        {uploading ? (
+                          <Loader2 className="w-5 h-5 text-foreground animate-spin" />
+                        ) : (
+                          <Paperclip className="w-5 h-5 text-foreground" />
+                        )}
+                      </div>
+                      <span className="text-sm font-medium">Attach File</span>
+                    </label>
+                    <label className="flex-1 flex flex-col items-center gap-2 p-4 rounded-xl bg-muted hover:bg-muted/80 transition-colors cursor-pointer">
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept="image/*"
+                        onChange={(e) => handleFileUpload(e, "image")}
+                        disabled={uploading}
+                      />
+                      <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center">
+                        {uploading ? (
+                          <Loader2 className="w-5 h-5 text-foreground animate-spin" />
+                        ) : (
+                          <ImageIcon className="w-5 h-5 text-foreground" />
+                        )}
+                      </div>
+                      <span className="text-sm font-medium">Attach Image</span>
+                    </label>
+                  </div>
+                )}
 
                 {/* Submit Button */}
                 <Button
                   onClick={handleSubmit}
-                  disabled={!title.trim() || !description.trim() || createContribution.isPending}
+                  disabled={!title.trim() || !description.trim() || createContribution.isPending || uploading}
                   className="w-full py-6 text-base font-semibold rounded-xl"
                 >
                   {createContribution.isPending ? (

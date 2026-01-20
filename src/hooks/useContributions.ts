@@ -78,10 +78,14 @@ export const useCreateContribution = () => {
       title,
       description,
       taskId,
+      evidenceUrl,
+      evidenceType,
     }: {
       title: string;
       description: string;
       taskId?: string;
+      evidenceUrl?: string;
+      evidenceType?: string;
     }) => {
       if (!user) throw new Error("Not authenticated");
 
@@ -92,6 +96,8 @@ export const useCreateContribution = () => {
           title,
           description,
           task_id: taskId || null,
+          evidence_url: evidenceUrl || null,
+          evidence_type: evidenceType || null,
           status: "pending",
         })
         .select()

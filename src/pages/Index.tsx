@@ -1,41 +1,15 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Settings, Plus, Shield } from "lucide-react";
+import { Settings, Plus, Shield, CheckCircle, Clock, TrendingUp, ListTodo } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { TaskCard } from "@/components/cards/TaskCard";
-import { ProgressBar } from "@/components/ui/ProgressBar";
+import { MetricCard } from "@/components/cards/MetricCard";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { AddWorkUpdateModal } from "@/components/modals/AddWorkUpdateModal";
-
-// Mock data - in production this would come from the database
-const todaysTasks = [
-  {
-    id: "1",
-    title: "Complete Project Proposal",
-    description: "Draft and finalize the proposal for the upcoming project.",
-    project: "Product Development",
-    dueLabel: "Due Today",
-    imageUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=200&h=200&fit=crop",
-  },
-  {
-    id: "2",
-    title: "Team Meeting Prep",
-    description: "Prepare agenda and materials for the team meeting.",
-    project: "Team Operations",
-    dueLabel: "Due Tomorrow",
-    imageUrl: "https://images.unsplash.com/photo-1557683316-973673baf926?w=200&h=200&fit=crop",
-  },
-  {
-    id: "3",
-    title: "Client Feedback Review",
-    description: "Analyze and summarize client feedback from the recent survey.",
-    project: "Customer Success",
-    dueLabel: "Due This Week",
-    imageUrl: "https://images.unsplash.com/photo-1558591710-4b4a1ae0f04d?w=200&h=200&fit=crop",
-  },
-];
+import { useHomeTasks, useHomeStats, formatDueLabel } from "@/hooks/useHomeData";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -56,36 +30,44 @@ const Index = () => {
   const { user } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isManager, setIsManager] = useState(false);
   const [profileName, setProfileName] = useState<string | null>(null);
-  const dailyProgress = 60;
+
+  const { data: tasks, isLoading: tasksLoading } = useHomeTasks();
+  const { data: stats, isLoading: statsLoading } = useHomeStats();
 
   useEffect(() => {
-    const checkAdminAndProfile = async () => {
+    const checkRolesAndProfile = async () => {
       if (!user) return;
 
-      // Check if admin
-      const { data: roleData } = await supabase
+      // Check roles
+      const { data: roles } = await supabase
         .from("user_roles")
         .select("role")
-        .eq("user_id", user.id)
-        .eq("role", "admin")
-        .maybeSingle();
+        .eq("user_id", user.id);
 
-      setIsAdmin(!!roleData);
+      const userRoles = roles?.map((r) => r.role) || [];
+      setIsAdmin(userRoles.includes("admin"));
+      setIsManager(
+        userRoles.includes("manager") ||
+        userRoles.includes("team_lead") ||
+        userRoles.includes("hr") ||
+        userRoles.includes("admin")
+      );
 
       // Get profile name
       const { data: profileData } = await supabase
         .from("profiles")
         .select("full_name")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
 
       if (profileData) {
         setProfileName(profileData.full_name.split(" ")[0]);
       }
     };
 
-    checkAdminAndProfile();
+    checkRolesAndProfile();
   }, [user]);
 
   const getGreeting = () => {
@@ -130,45 +112,110 @@ const Index = () => {
             </h1>
           </motion.div>
 
+          {/* Stats Grid */}
+          <motion.div variants={itemVariants} className="grid grid-cols-2 gap-3">
+            {statsLoading ? (
+              <>
+                <Skeleton className="h-24 rounded-2xl" />
+                <Skeleton className="h-24 rounded-2xl" />
+                <Skeleton className="h-24 rounded-2xl" />
+                <Skeleton className="h-24 rounded-2xl" />
+              </>
+            ) : (
+              <>
+                <MetricCard
+                  label="Active Tasks"
+                  value={stats?.totalTasks || 0}
+                  maxValue={10}
+                  icon={ListTodo}
+                  showInfo={false}
+                />
+                <MetricCard
+                  label="Done Today"
+                  value={stats?.completedToday || 0}
+                  maxValue={5}
+                  icon={CheckCircle}
+                  variant="success"
+                  showInfo={false}
+                />
+                <MetricCard
+                  label="Pending"
+                  value={stats?.pendingContributions || 0}
+                  maxValue={10}
+                  icon={Clock}
+                  variant="warning"
+                  showInfo={false}
+                />
+                <MetricCard
+                  label="Approved"
+                  value={stats?.approvedContributions || 0}
+                  maxValue={20}
+                  icon={TrendingUp}
+                  variant="success"
+                  showInfo={false}
+                />
+              </>
+            )}
+          </motion.div>
+
+          {/* Manager Quick Access */}
+          {isManager && (
+            <motion.div variants={itemVariants}>
+              <Link
+                to="/manager"
+                className="block bg-gradient-to-r from-primary/10 to-accent/10 rounded-2xl p-4 border border-primary/20 hover:border-primary/40 transition-colors"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-semibold">Review Contributions</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Approve or review team submissions
+                    </p>
+                  </div>
+                  <Shield className="w-8 h-8 text-primary/60" />
+                </div>
+              </Link>
+            </motion.div>
+          )}
+
           {/* Today's Tasks */}
           <motion.section variants={itemVariants}>
-            <h3 className="text-lg font-semibold mb-4">Today's Tasks</h3>
-            <div className="space-y-3">
-              {todaysTasks.map((task, index) => (
-                <motion.div
-                  key={task.id}
-                  variants={itemVariants}
-                  transition={{ delay: index * 0.1 }}
-                >
-                  <TaskCard
-                    title={task.title}
-                    description={task.description}
-                    project={task.project}
-                    dueLabel={task.dueLabel}
-                    imageUrl={task.imageUrl}
-                  />
-                </motion.div>
-              ))}
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Your Tasks</h3>
+              <Link to="/tasks" className="text-sm text-primary font-medium">
+                View all
+              </Link>
             </div>
-          </motion.section>
-
-          {/* Daily Focus */}
-          <motion.section
-            variants={itemVariants}
-            className="bg-card rounded-2xl p-4 shadow-soft border border-border/50"
-          >
-            <h3 className="text-lg font-semibold mb-2">Daily Focus</h3>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">
-                  {dailyProgress}% Complete
-                </span>
+            {tasksLoading ? (
+              <div className="space-y-3">
+                <Skeleton className="h-28 rounded-2xl" />
+                <Skeleton className="h-28 rounded-2xl" />
               </div>
-              <ProgressBar value={dailyProgress} size="md" />
-              <p className="text-sm text-muted-foreground mt-2">
-                Keep up the great work!
-              </p>
-            </div>
+            ) : tasks && tasks.length > 0 ? (
+              <div className="space-y-3">
+                {tasks.map((task, index) => (
+                  <motion.div
+                    key={task.id}
+                    variants={itemVariants}
+                    transition={{ delay: index * 0.1 }}
+                  >
+                    <TaskCard
+                      title={task.title}
+                      description={task.description || undefined}
+                      project={task.project_name || "No Project"}
+                      dueLabel={formatDueLabel(task.due_date)}
+                    />
+                  </motion.div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 bg-muted/50 rounded-2xl">
+                <p className="text-muted-foreground">No tasks assigned</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Tasks will appear here when assigned
+                </p>
+              </div>
+            )}
           </motion.section>
         </motion.div>
 
