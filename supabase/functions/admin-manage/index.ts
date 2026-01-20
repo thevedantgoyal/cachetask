@@ -6,6 +6,7 @@ const corsHeaders = {
 };
 
 interface UpdateEmployeeRequest {
+  action: "update-employee";
   employee_profile_id: string;
   updates: {
     job_title?: string;
@@ -17,9 +18,20 @@ interface UpdateEmployeeRequest {
 }
 
 interface AssignRoleRequest {
+  action: "assign-role";
   user_id: string;
   role: "employee" | "team_lead" | "manager" | "hr" | "admin";
 }
+
+interface GetAllEmployeesRequest {
+  action: "get-all-employees";
+}
+
+interface GetManagersRequest {
+  action: "get-managers";
+}
+
+type AdminRequest = UpdateEmployeeRequest | AssignRoleRequest | GetAllEmployeesRequest | GetManagersRequest;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -70,7 +82,7 @@ Deno.serve(async (req) => {
       .select("role")
       .eq("user_id", user.id)
       .eq("role", "admin")
-      .single();
+      .maybeSingle();
 
     if (!roleData) {
       return new Response(
@@ -79,11 +91,13 @@ Deno.serve(async (req) => {
       );
     }
 
-    const url = new URL(req.url);
-    const action = url.searchParams.get("action");
+    const body: AdminRequest = await req.json();
+    const action = body.action;
+
+    console.log("Action:", action);
 
     if (action === "update-employee") {
-      const { employee_profile_id, updates }: UpdateEmployeeRequest = await req.json();
+      const { employee_profile_id, updates } = body as UpdateEmployeeRequest;
 
       console.log(`Updating employee ${employee_profile_id}:`, updates);
 
@@ -107,7 +121,7 @@ Deno.serve(async (req) => {
     }
 
     if (action === "assign-role") {
-      const { user_id, role }: AssignRoleRequest = await req.json();
+      const { user_id, role } = body as AssignRoleRequest;
 
       console.log(`Assigning role ${role} to user ${user_id}`);
 
@@ -138,24 +152,49 @@ Deno.serve(async (req) => {
     if (action === "get-all-employees") {
       console.log("Fetching all employees");
 
-      const { data: profiles, error } = await supabaseAdmin
+      // Fetch profiles and roles separately since there's no direct FK
+      const { data: profiles, error: profilesError } = await supabaseAdmin
         .from("profiles")
-        .select(`
-          *,
-          user_roles (role)
-        `)
+        .select("*")
         .order("created_at", { ascending: false });
 
-      if (error) {
-        console.error("Fetch error:", error);
+      if (profilesError) {
+        console.error("Fetch profiles error:", profilesError);
         return new Response(
-          JSON.stringify({ error: error.message }),
+          JSON.stringify({ error: profilesError.message }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
+      // Fetch all user roles
+      const { data: roles, error: rolesError } = await supabaseAdmin
+        .from("user_roles")
+        .select("user_id, role");
+
+      if (rolesError) {
+        console.error("Fetch roles error:", rolesError);
+        return new Response(
+          JSON.stringify({ error: rolesError.message }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Map roles to profiles
+      const rolesMap = new Map<string, { role: string }[]>();
+      roles?.forEach((r) => {
+        if (!rolesMap.has(r.user_id)) {
+          rolesMap.set(r.user_id, []);
+        }
+        rolesMap.get(r.user_id)!.push({ role: r.role });
+      });
+
+      const employeesWithRoles = profiles?.map((p) => ({
+        ...p,
+        user_roles: rolesMap.get(p.user_id) || null,
+      }));
+
       return new Response(
-        JSON.stringify({ employees: profiles }),
+        JSON.stringify({ employees: employeesWithRoles }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
