@@ -78,15 +78,8 @@ const AdminDashboard = () => {
 
   const fetchEmployees = useCallback(async () => {
     try {
-      const { data, error } = await supabase.functions.invoke("admin-manage", {
-        body: {},
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
-
-      // Parse URL params manually since we can't do it with invoke
-      const response = await supabase.functions.invoke("admin-manage?action=get-all-employees", {
-        body: {},
+      const response = await supabase.functions.invoke("admin-manage", {
+        body: { action: "get-all-employees" },
       });
 
       if (response.error) throw response.error;
@@ -99,8 +92,8 @@ const AdminDashboard = () => {
 
   const fetchManagers = useCallback(async () => {
     try {
-      const response = await supabase.functions.invoke("admin-manage?action=get-managers", {
-        body: {},
+      const response = await supabase.functions.invoke("admin-manage", {
+        body: { action: "get-managers" },
       });
 
       if (response.error) throw response.error;
@@ -215,8 +208,9 @@ const AdminDashboard = () => {
 
   const handleUpdateEmployee = async (employeeId: string, updates: Record<string, unknown>) => {
     try {
-      const response = await supabase.functions.invoke("admin-manage?action=update-employee", {
+      const response = await supabase.functions.invoke("admin-manage", {
         body: {
+          action: "update-employee",
           employee_profile_id: employeeId,
           updates,
         },
@@ -235,8 +229,8 @@ const AdminDashboard = () => {
 
   const handleAssignRole = async (userId: string, role: string) => {
     try {
-      const response = await supabase.functions.invoke("admin-manage?action=assign-role", {
-        body: { user_id: userId, role },
+      const response = await supabase.functions.invoke("admin-manage", {
+        body: { action: "assign-role", user_id: userId, role },
       });
 
       if (response.error) throw response.error;
