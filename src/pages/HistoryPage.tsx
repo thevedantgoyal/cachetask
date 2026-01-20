@@ -1,43 +1,9 @@
 import { motion } from "framer-motion";
-import { FileText, Users, Flag, Code2, Megaphone, ChevronLeft } from "lucide-react";
+import { FileText, ChevronLeft, Loader2 } from "lucide-react";
 import { HistoryItem } from "@/components/cards/HistoryItem";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { useNavigate } from "react-router-dom";
-
-interface HistoryGroup {
-  label: string;
-  items: {
-    id: string;
-    icon: typeof FileText;
-    title: string;
-    status: "pending" | "approved" | "rejected";
-  }[];
-}
-
-const historyData: HistoryGroup[] = [
-  {
-    label: "Today",
-    items: [
-      { id: "1", icon: FileText, title: "Project Alpha Update", status: "pending" },
-      { id: "2", icon: Megaphone, title: "Team Meeting Notes", status: "approved" },
-      { id: "3", icon: Flag, title: "Client Feedback Summary", status: "approved" },
-    ],
-  },
-  {
-    label: "Yesterday",
-    items: [
-      { id: "4", icon: FileText, title: "Sprint Planning Notes", status: "approved" },
-      { id: "5", icon: Code2, title: "Code Review", status: "approved" },
-    ],
-  },
-  {
-    label: "This Week",
-    items: [
-      { id: "6", icon: Users, title: "Onboarding Documentation", status: "approved" },
-      { id: "7", icon: FileText, title: "Q4 OKRs Draft", status: "pending" },
-    ],
-  },
-];
+import { useContributions, groupContributionsByDate } from "@/hooks/useContributions";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -56,6 +22,11 @@ const itemVariants = {
 
 const HistoryPage = () => {
   const navigate = useNavigate();
+  const { data: contributions, isLoading, error } = useContributions();
+
+  const groupedContributions = contributions 
+    ? groupContributionsByDate(contributions) 
+    : [];
 
   return (
     <div className="min-h-screen bg-background">
@@ -72,29 +43,46 @@ const HistoryPage = () => {
           <div className="w-10" />
         </header>
 
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
-          className="space-y-6 mt-2"
-        >
-          {historyData.map((group) => (
-            <motion.section key={group.label} variants={itemVariants}>
-              <h3 className="text-lg font-semibold mb-2">{group.label}</h3>
-              <div className="space-y-1">
-                {group.items.map((item) => (
-                  <motion.div key={item.id} variants={itemVariants}>
-                    <HistoryItem
-                      icon={item.icon}
-                      title={item.title}
-                      status={item.status}
-                    />
-                  </motion.div>
-                ))}
-              </div>
-            </motion.section>
-          ))}
-        </motion.div>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : error ? (
+          <div className="text-center py-12 text-destructive">
+            Failed to load contributions
+          </div>
+        ) : groupedContributions.length > 0 ? (
+          <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            className="space-y-6 mt-2"
+          >
+            {groupedContributions.map((group) => (
+              <motion.section key={group.label} variants={itemVariants}>
+                <h3 className="text-lg font-semibold mb-2">{group.label}</h3>
+                <div className="space-y-1">
+                  {group.items.map((item) => (
+                    <motion.div key={item.id} variants={itemVariants}>
+                      <HistoryItem
+                        icon={FileText}
+                        title={item.title}
+                        status={(item.status as "pending" | "approved" | "rejected") || "pending"}
+                      />
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.section>
+            ))}
+          </motion.div>
+        ) : (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">No contributions yet</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Add your first work update to start tracking your progress
+            </p>
+          </div>
+        )}
 
         <BottomNav />
       </div>
