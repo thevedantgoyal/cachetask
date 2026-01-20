@@ -1,38 +1,8 @@
 import { motion } from "framer-motion";
-import { Plus, Menu } from "lucide-react";
+import { Plus, Menu, Loader2 } from "lucide-react";
 import { TaskCard } from "@/components/cards/TaskCard";
 import { BottomNav } from "@/components/layout/BottomNav";
-
-const allTasks = [
-  {
-    id: "1",
-    title: "Review Q3 Marketing Plan",
-    project: "Marketing Strategy",
-    dueLabel: "Due in 2 days",
-    imageUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=200&h=200&fit=crop",
-  },
-  {
-    id: "2",
-    title: "Prepare Sales Presentation",
-    project: "Sales Enablement",
-    dueLabel: "Due in 1 week",
-    imageUrl: "https://images.unsplash.com/photo-1557683316-973673baf926?w=200&h=200&fit=crop",
-  },
-  {
-    id: "3",
-    title: "Analyze Customer Feedback",
-    project: "Product Development",
-    dueLabel: "Due in 2 weeks",
-    imageUrl: "https://images.unsplash.com/photo-1558591710-4b4a1ae0f04d?w=200&h=200&fit=crop",
-  },
-  {
-    id: "4",
-    title: "Plan Team Building Event",
-    project: "Employee Engagement",
-    dueLabel: "Due in 3 weeks",
-    imageUrl: "https://images.unsplash.com/photo-1579546929662-711aa81148cf?w=200&h=200&fit=crop",
-  },
-];
+import { useTasks, formatDueLabel } from "@/hooks/useTasks";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -50,6 +20,8 @@ const itemVariants = {
 };
 
 const TasksPage = () => {
+  const { data: tasks, isLoading, error } = useTasks();
+
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-lg mx-auto page-container">
@@ -64,27 +36,44 @@ const TasksPage = () => {
           </button>
         </header>
 
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
-          className="space-y-3 mt-2"
-        >
-          {allTasks.map((task, index) => (
-            <motion.div
-              key={task.id}
-              variants={itemVariants}
-              transition={{ delay: index * 0.05 }}
-            >
-              <TaskCard
-                title={task.title}
-                project={task.project}
-                dueLabel={task.dueLabel}
-                imageUrl={task.imageUrl}
-              />
-            </motion.div>
-          ))}
-        </motion.div>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : error ? (
+          <div className="text-center py-12 text-destructive">
+            Failed to load tasks
+          </div>
+        ) : tasks && tasks.length > 0 ? (
+          <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            className="space-y-3 mt-2"
+          >
+            {tasks.map((task, index) => (
+              <motion.div
+                key={task.id}
+                variants={itemVariants}
+                transition={{ delay: index * 0.05 }}
+              >
+                <TaskCard
+                  title={task.title}
+                  description={task.description || undefined}
+                  project={task.project_name || "No Project"}
+                  dueLabel={formatDueLabel(task.due_date)}
+                />
+              </motion.div>
+            ))}
+          </motion.div>
+        ) : (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">No tasks assigned to you</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Tasks will appear here when assigned by your manager
+            </p>
+          </div>
+        )}
 
         <BottomNav />
       </div>

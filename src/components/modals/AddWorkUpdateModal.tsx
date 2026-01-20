@@ -1,30 +1,50 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Paperclip, Image } from "lucide-react";
+import { X, Paperclip, Image, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useUserTasks, useCreateContribution } from "@/hooks/useContributions";
+import { useToast } from "@/hooks/use-toast";
 
 interface AddWorkUpdateModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-const mockTasks = [
-  { id: "1", title: "Complete Project Proposal" },
-  { id: "2", title: "Team Meeting Prep" },
-  { id: "3", title: "Client Feedback Review" },
-  { id: "4", title: "Review Q3 Marketing Plan" },
-];
-
 export const AddWorkUpdateModal = ({ isOpen, onClose }: AddWorkUpdateModalProps) => {
   const [selectedTask, setSelectedTask] = useState("");
+  const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  
+  const { data: tasks, isLoading: tasksLoading } = useUserTasks();
+  const createContribution = useCreateContribution();
+  const { toast } = useToast();
 
-  const handleSubmit = () => {
-    // In production, this would submit to the database
-    console.log({ selectedTask, description });
-    setSelectedTask("");
-    setDescription("");
-    onClose();
+  const handleSubmit = async () => {
+    if (!title.trim() || !description.trim()) return;
+
+    try {
+      await createContribution.mutateAsync({
+        title: title.trim(),
+        description: description.trim(),
+        taskId: selectedTask || undefined,
+      });
+      
+      toast({
+        title: "Work update submitted",
+        description: "Your contribution has been submitted for review.",
+      });
+      
+      setSelectedTask("");
+      setTitle("");
+      setDescription("");
+      onClose();
+    } catch (error) {
+      toast({
+        title: "Failed to submit",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -62,15 +82,27 @@ export const AddWorkUpdateModal = ({ isOpen, onClose }: AddWorkUpdateModalProps)
               </div>
 
               <div className="space-y-6">
+                {/* Title Input */}
+                <div>
+                  <input
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="Title"
+                    className="w-full p-4 rounded-xl border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
+
                 {/* Task Select */}
                 <div>
                   <select
                     value={selectedTask}
                     onChange={(e) => setSelectedTask(e.target.value)}
+                    disabled={tasksLoading}
                     className="w-full p-4 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer"
                   >
-                    <option value="">Select Task</option>
-                    {mockTasks.map((task) => (
+                    <option value="">Link to Task (Optional)</option>
+                    {tasks?.map((task) => (
                       <option key={task.id} value={task.id}>
                         {task.title}
                       </option>
@@ -108,10 +140,14 @@ export const AddWorkUpdateModal = ({ isOpen, onClose }: AddWorkUpdateModalProps)
                 {/* Submit Button */}
                 <Button
                   onClick={handleSubmit}
-                  disabled={!selectedTask || !description}
+                  disabled={!title.trim() || !description.trim() || createContribution.isPending}
                   className="w-full py-6 text-base font-semibold rounded-xl"
                 >
-                  Submit Update
+                  {createContribution.isPending ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    "Submit Update"
+                  )}
                 </Button>
               </div>
             </div>
