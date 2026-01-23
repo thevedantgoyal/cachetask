@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion } from "framer-motion";
 import {
   ChevronLeft,
@@ -18,6 +18,8 @@ import {
   MapPin,
   Briefcase,
   UsersRound,
+  FileUp,
+  Download,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -99,6 +101,73 @@ const AdminDashboard = () => {
   // Bulk onboard state
   const [bulkData, setBulkData] = useState<string>("");
   const [bulkLoading, setBulkLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Handle CSV file upload
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.endsWith(".csv")) {
+      toast.error("Please upload a CSV file");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      if (text) {
+        // Parse CSV: skip header row if it looks like a header
+        const lines = text.trim().split("\n");
+        const firstLine = lines[0]?.toLowerCase() || "";
+        
+        // Check if first line is a header (contains "email" or similar)
+        const isHeader = firstLine.includes("email") || firstLine.includes("full_name");
+        const dataLines = isHeader ? lines.slice(1) : lines;
+        
+        // Clean up the data (remove quotes, trim whitespace)
+        const cleanedData = dataLines
+          .map((line) => 
+            line
+              .split(",")
+              .map((cell) => cell.trim().replace(/^["']|["']$/g, ""))
+              .join(", ")
+          )
+          .filter((line) => line.trim())
+          .join("\n");
+
+        setBulkData(cleanedData);
+        toast.success(`Loaded ${dataLines.filter(l => l.trim()).length} employees from CSV`);
+      }
+    };
+    reader.onerror = () => {
+      toast.error("Failed to read file");
+    };
+    reader.readAsText(file);
+
+    // Reset input so same file can be selected again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  // Download CSV template
+  const handleDownloadTemplate = () => {
+    const template = `email,full_name,job_title,department,location,role
+john@company.com,John Doe,Software Engineer,Engineering,New York,employee
+jane@company.com,Jane Smith,Product Manager,Product,London,manager
+bob@company.com,Bob Wilson,Team Lead,Design,Remote,team_lead`;
+    
+    const blob = new Blob([template], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "employee_onboard_template.csv";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   // Single employee form
   const [newEmployee, setNewEmployee] = useState({
@@ -657,8 +726,36 @@ const AdminDashboard = () => {
                 <Upload className="w-5 h-5 text-primary" />
                 Bulk Employee Onboarding
               </h3>
+
+              {/* File Upload & Template Download */}
+              <div className="flex flex-wrap gap-3 mb-4">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+                <Button
+                  variant="outline"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="gap-2"
+                >
+                  <FileUp className="w-4 h-4" />
+                  Upload CSV File
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={handleDownloadTemplate}
+                  className="gap-2"
+                >
+                  <Download className="w-4 h-4" />
+                  Download Template
+                </Button>
+              </div>
+
               <p className="text-sm text-muted-foreground mb-4">
-                Enter employee data in CSV format (one per line):
+                Upload a CSV file or enter employee data manually (one per line):
                 <br />
                 <code className="text-xs bg-muted px-2 py-1 rounded mt-2 inline-block">
                   email, full_name, job_title, department, location, role
@@ -677,17 +774,24 @@ bob@company.com, Bob Wilson, Designer, Design, Remote, team_lead`}
                 rows={12}
                 className="w-full p-4 rounded-xl border border-border bg-background font-mono text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
-              <div className="flex items-center gap-4 mt-4">
-                <Button onClick={handleBulkOnboard} disabled={bulkLoading || !bulkData.trim()}>
-                  {bulkLoading ? "Processing..." : "Onboard Employees"}
-                </Button>
-                <span className="text-sm text-muted-foreground">
-                  {bulkData
-                    .trim()
-                    .split("\n")
-                    .filter((l) => l.trim()).length}{" "}
-                  employees ready
-                </span>
+              <div className="flex items-center justify-between gap-4 mt-4 flex-wrap">
+                <div className="flex items-center gap-4">
+                  <Button onClick={handleBulkOnboard} disabled={bulkLoading || !bulkData.trim()}>
+                    {bulkLoading ? "Processing..." : "Onboard Employees"}
+                  </Button>
+                  <span className="text-sm text-muted-foreground">
+                    {bulkData
+                      .trim()
+                      .split("\n")
+                      .filter((l) => l.trim()).length}{" "}
+                    employees ready
+                  </span>
+                </div>
+                {bulkData.trim() && (
+                  <Button variant="ghost" size="sm" onClick={() => setBulkData("")}>
+                    Clear
+                  </Button>
+                )}
               </div>
             </motion.div>
           </motion.div>
