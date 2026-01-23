@@ -12,13 +12,12 @@ import {
   Key,
   BarChart3,
   Search,
-  Filter,
-  MoreVertical,
   Trash2,
   UserCheck,
   Building2,
   MapPin,
   Briefcase,
+  UsersRound,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { z } from "zod";
 import { RoleBasedNav } from "@/components/layout/RoleBasedNav";
+import { TeamManagement } from "@/components/admin/TeamManagement";
 
 interface Employee {
   id: string;
@@ -70,7 +70,7 @@ const itemVariants = {
   visible: { opacity: 1, y: 0 },
 };
 
-type TabType = "overview" | "employees" | "bulk" | "roles" | "settings";
+type TabType = "overview" | "employees" | "teams" | "bulk" | "roles" | "settings";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -313,6 +313,7 @@ const AdminDashboard = () => {
   const tabs: { id: TabType; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
     { id: "overview", label: "Overview", icon: BarChart3 },
     { id: "employees", label: "Employees", icon: Users },
+    { id: "teams", label: "Teams", icon: UsersRound },
     { id: "bulk", label: "Bulk Onboard", icon: Upload },
     { id: "roles", label: "Roles", icon: Shield },
     { id: "settings", label: "Settings", icon: Settings },
@@ -614,6 +615,9 @@ const AdminDashboard = () => {
             </motion.div>
           </motion.div>
         )}
+
+        {/* Teams Tab */}
+        {activeTab === "teams" && <TeamManagement />}
 
         {/* Bulk Onboard Tab */}
         {activeTab === "bulk" && (
