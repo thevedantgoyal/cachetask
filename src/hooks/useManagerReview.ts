@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { createNotification } from "@/hooks/useNotifications";
 
 export interface PendingContribution {
   id: string;
@@ -124,9 +125,16 @@ export const useReviewContribution = () => {
       // Get reviewer's profile id
       const { data: profile } = await supabase
         .from("profiles")
-        .select("id")
+        .select("id, full_name")
         .eq("user_id", user.id)
         .maybeSingle();
+
+      // Get the contribution details first
+      const { data: contribution } = await supabase
+        .from("contributions")
+        .select("title, user_id")
+        .eq("id", contributionId)
+        .single();
 
       const { data, error } = await supabase
         .from("contributions")
@@ -141,6 +149,24 @@ export const useReviewContribution = () => {
         .single();
 
       if (error) throw error;
+
+      // Send notification to the contributor
+      if (contribution?.user_id) {
+        try {
+          await createNotification(
+            contribution.user_id,
+            status === "approved" ? "contribution_approved" : "contribution_rejected",
+            status === "approved" ? "Contribution Approved! 🎉" : "Contribution Needs Revision",
+            status === "approved"
+              ? `Your contribution "${contribution.title}" has been approved by ${profile?.full_name || "a manager"}.${notes ? ` Notes: ${notes}` : ""}`
+              : `Your contribution "${contribution.title}" was not approved.${notes ? ` Feedback: ${notes}` : " Please check with your manager for details."}`,
+            { contributionId, reviewerName: profile?.full_name }
+          );
+        } catch (notifError) {
+          console.error("Failed to send notification:", notifError);
+        }
+      }
+
       return data;
     },
     onSuccess: () => {

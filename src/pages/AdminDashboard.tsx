@@ -26,6 +26,9 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { RoleBasedNav } from "@/components/layout/RoleBasedNav";
 import { TeamManagement } from "@/components/admin/TeamManagement";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { NotificationPanel } from "@/components/notifications/NotificationPanel";
+import { createNotification } from "@/hooks/useNotifications";
 
 interface Employee {
   id: string;
@@ -82,6 +85,7 @@ const AdminDashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterRole, setFilterRole] = useState<string>("");
   const [filterDepartment, setFilterDepartment] = useState<string>("");
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
 
   // Stats
   const [stats, setStats] = useState<Stats>({
@@ -278,13 +282,29 @@ const AdminDashboard = () => {
 
   const handleAssignRole = async (userId: string, role: string) => {
     try {
+      // Find the employee to get their name
+      const employee = employees.find(e => e.user_id === userId);
+      
       const response = await supabase.functions.invoke("admin-manage", {
         body: { action: "assign-role", user_id: userId, role },
       });
 
       if (response.error) throw response.error;
 
-      toast.success(`Role "${role}" assigned successfully`);
+      // Send notification to the user about their role change
+      try {
+        await createNotification(
+          userId,
+          "role_changed",
+          "Your Role Has Been Updated",
+          `Your role has been changed to "${role}". You may have new permissions and features available.`,
+          { newRole: role }
+        );
+      } catch (notifError) {
+        console.error("Failed to send notification:", notifError);
+      }
+
+      toast.success(`Role "${role}" assigned to ${employee?.full_name || "user"}`);
       fetchEmployees();
     } catch (err) {
       console.error("Error assigning role:", err);
@@ -331,7 +351,7 @@ const AdminDashboard = () => {
             <Shield className="w-5 h-5 text-primary" />
             Admin Control Panel
           </h1>
-          <div className="w-10" />
+          <NotificationBell onClick={() => setIsNotificationsOpen(true)} />
         </header>
 
         {/* Tabs */}
@@ -886,6 +906,11 @@ bob@company.com, Bob Wilson, Designer, Design, Remote`}
       </div>
 
       <RoleBasedNav />
+      
+      <NotificationPanel
+        isOpen={isNotificationsOpen}
+        onClose={() => setIsNotificationsOpen(false)}
+      />
     </div>
   );
 };
