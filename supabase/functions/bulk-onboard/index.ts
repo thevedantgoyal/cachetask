@@ -13,6 +13,7 @@ interface EmployeeData {
   location?: string;
   manager_id?: string;
   password?: string;
+  role?: string;
 }
 
 interface BulkOnboardRequest {
@@ -147,6 +148,26 @@ Deno.serve(async (req) => {
 
             if (updateError) {
               console.error(`Failed to update profile for ${employee.email}:`, updateError);
+            }
+          }
+
+          // Assign role if specified (and different from default 'employee')
+          if (employee.role && employee.role !== "employee") {
+            const validRoles = ["employee", "team_lead", "manager", "hr", "admin", "organization"];
+            if (validRoles.includes(employee.role)) {
+              // Update the existing role (created by trigger) to the specified role
+              const { error: roleError } = await supabaseAdmin
+                .from("user_roles")
+                .update({ role: employee.role })
+                .eq("user_id", newUser.user.id);
+
+              if (roleError) {
+                console.error(`Failed to assign role for ${employee.email}:`, roleError);
+              } else {
+                console.log(`Role '${employee.role}' assigned to ${employee.email}`);
+              }
+            } else {
+              console.warn(`Invalid role '${employee.role}' for ${employee.email}, keeping default 'employee'`);
             }
           }
         }

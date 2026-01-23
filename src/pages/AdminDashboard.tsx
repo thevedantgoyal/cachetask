@@ -226,6 +226,7 @@ const AdminDashboard = () => {
             job_title: parts[2] || undefined,
             department: parts[3] || undefined,
             location: parts[4] || undefined,
+            role: parts[5] || undefined,
           };
         })
         .filter((e) => e.email);
@@ -660,15 +661,19 @@ const AdminDashboard = () => {
                 Enter employee data in CSV format (one per line):
                 <br />
                 <code className="text-xs bg-muted px-2 py-1 rounded mt-2 inline-block">
-                  email, full_name, job_title, department, location
+                  email, full_name, job_title, department, location, role
                 </code>
+                <br />
+                <span className="text-xs text-muted-foreground mt-1 inline-block">
+                  Valid roles: employee, team_lead, manager, hr, admin, organization
+                </span>
               </p>
               <textarea
                 value={bulkData}
                 onChange={(e) => setBulkData(e.target.value)}
-                placeholder={`john@company.com, John Doe, Software Engineer, Engineering, New York
-jane@company.com, Jane Smith, Product Manager, Product, London
-bob@company.com, Bob Wilson, Designer, Design, Remote`}
+                placeholder={`john@company.com, John Doe, Software Engineer, Engineering, New York, employee
+jane@company.com, Jane Smith, Product Manager, Product, London, manager
+bob@company.com, Bob Wilson, Designer, Design, Remote, team_lead`}
                 rows={12}
                 className="w-full p-4 rounded-xl border border-border bg-background font-mono text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
