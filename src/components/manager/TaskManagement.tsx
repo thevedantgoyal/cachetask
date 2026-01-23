@@ -12,6 +12,7 @@ import {
   PlayCircle,
   Trash2,
   ChevronDown,
+  Edit,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,9 +22,12 @@ import {
   useCreateTask,
   useUpdateTaskStatus,
   useDeleteTask,
+  useUpdateTask,
+  ManagedTask,
 } from "@/hooks/useTaskManagement";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
+import { EditTaskModal } from "./EditTaskModal";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -57,6 +61,7 @@ const statusColors = {
 export const TaskManagement = () => {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>("");
+  const [editingTask, setEditingTask] = useState<ManagedTask | null>(null);
   
   // Form state
   const [title, setTitle] = useState("");
@@ -73,6 +78,7 @@ export const TaskManagement = () => {
   const createTask = useCreateTask();
   const updateStatus = useUpdateTaskStatus();
   const deleteTask = useDeleteTask();
+  const updateTask = useUpdateTask();
 
   const resetForm = () => {
     setTitle("");
@@ -123,6 +129,25 @@ export const TaskManagement = () => {
       toast.success("Task deleted");
     } catch (error) {
       toast.error("Failed to delete task");
+    }
+  };
+
+  const handleEditTask = async (data: {
+    taskId: string;
+    title: string;
+    description?: string;
+    assignedTo?: string | null;
+    projectId?: string | null;
+    priority?: string;
+    dueDate?: string | null;
+    status?: string;
+  }) => {
+    try {
+      await updateTask.mutateAsync(data);
+      toast.success("Task updated successfully");
+      setEditingTask(null);
+    } catch (error) {
+      toast.error("Failed to update task");
     }
   };
 
@@ -377,6 +402,14 @@ export const TaskManagement = () => {
                     </button>
                     <div className="absolute right-0 top-full mt-1 bg-card border border-border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 min-w-[140px]">
                       <button
+                        onClick={() => setEditingTask(task)}
+                        className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"
+                      >
+                        <Edit className="w-4 h-4" />
+                        Edit Task
+                      </button>
+                      <hr className="my-1 border-border" />
+                      <button
                         onClick={() => handleStatusChange(task.id, "pending")}
                         className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"
                       >
@@ -413,6 +446,17 @@ export const TaskManagement = () => {
           })}
         </motion.div>
       )}
+
+      {/* Edit Task Modal */}
+      <EditTaskModal
+        task={editingTask}
+        isOpen={!!editingTask}
+        onClose={() => setEditingTask(null)}
+        onSave={handleEditTask}
+        isSaving={updateTask.isPending}
+        teamMembers={teamMembers}
+        projects={projects}
+      />
     </div>
   );
 };
