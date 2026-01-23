@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { createNotification } from "@/hooks/useNotifications";
+import { sendContributionApprovedEmail, sendContributionRejectedEmail } from "@/hooks/useEmailNotifications";
 
 export interface PendingContribution {
   id: string;
@@ -129,12 +130,23 @@ export const useReviewContribution = () => {
         .eq("user_id", user.id)
         .maybeSingle();
 
-      // Get the contribution details first
+      // Get the contribution details first including employee email
       const { data: contribution } = await supabase
         .from("contributions")
         .select("title, user_id")
         .eq("id", contributionId)
         .single();
+
+      // Get the contributor's email
+      let contributorEmail = "";
+      if (contribution?.user_id) {
+        const { data: contributorProfile } = await supabase
+          .from("profiles")
+          .select("email")
+          .eq("user_id", contribution.user_id)
+          .maybeSingle();
+        contributorEmail = contributorProfile?.email || "";
+      }
 
       const { data, error } = await supabase
         .from("contributions")
@@ -164,6 +176,24 @@ export const useReviewContribution = () => {
           );
         } catch (notifError) {
           console.error("Failed to send notification:", notifError);
+        }
+
+        // Send email notification
+        if (contributorEmail) {
+          if (status === "approved") {
+            sendContributionApprovedEmail(
+              contributorEmail,
+              contribution.title,
+              profile?.full_name
+            ).catch((err) => console.error("Failed to send approval email:", err));
+          } else {
+            sendContributionRejectedEmail(
+              contributorEmail,
+              contribution.title,
+              notes,
+              profile?.full_name
+            ).catch((err) => console.error("Failed to send rejection email:", err));
+          }
         }
       }
 

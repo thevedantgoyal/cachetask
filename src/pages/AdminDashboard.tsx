@@ -26,9 +26,11 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { RoleBasedNav } from "@/components/layout/RoleBasedNav";
 import { TeamManagement } from "@/components/admin/TeamManagement";
+import { EmailSettings } from "@/components/admin/EmailSettings";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { NotificationPanel } from "@/components/notifications/NotificationPanel";
 import { createNotification } from "@/hooks/useNotifications";
+import { sendRoleChangedEmail } from "@/hooks/useEmailNotifications";
 
 interface Employee {
   id: string;
@@ -282,7 +284,7 @@ const AdminDashboard = () => {
 
   const handleAssignRole = async (userId: string, role: string) => {
     try {
-      // Find the employee to get their name
+      // Find the employee to get their name and email
       const employee = employees.find(e => e.user_id === userId);
       
       const response = await supabase.functions.invoke("admin-manage", {
@@ -291,7 +293,7 @@ const AdminDashboard = () => {
 
       if (response.error) throw response.error;
 
-      // Send notification to the user about their role change
+      // Send in-app notification to the user about their role change
       try {
         await createNotification(
           userId,
@@ -302,6 +304,13 @@ const AdminDashboard = () => {
         );
       } catch (notifError) {
         console.error("Failed to send notification:", notifError);
+      }
+
+      // Send email notification
+      if (employee?.email) {
+        sendRoleChangedEmail(employee.email, role).catch((err) => {
+          console.error("Failed to send email notification:", err);
+        });
       }
 
       toast.success(`Role "${role}" assigned to ${employee?.full_name || "user"}`);
@@ -815,6 +824,61 @@ bob@company.com, Bob Wilson, Designer, Design, Remote`}
                 </div>
               </div>
             </motion.div>
+          </motion.div>
+        )}
+
+        {/* Settings Tab */}
+        {activeTab === "settings" && (
+          <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-6">
+            {/* System Info */}
+            <motion.div variants={itemVariants} className="bg-card rounded-2xl p-6 shadow-soft border border-border/50">
+              <h3 className="font-semibold mb-4">System Information</h3>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-4 bg-muted/50 rounded-xl">
+                  <div className="flex items-center gap-3">
+                    <Shield className="w-5 h-5 text-primary" />
+                    <div>
+                      <p className="font-medium">Application</p>
+                      <p className="text-sm text-muted-foreground">MIRROR - Performance Tracking System</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-muted/50 rounded-xl">
+                  <div className="flex items-center gap-3">
+                    <Database className="w-5 h-5 text-primary" />
+                    <div>
+                      <p className="font-medium">Database Status</p>
+                      <p className="text-sm text-muted-foreground">Connected & Healthy</p>
+                    </div>
+                  </div>
+                  <span className="w-3 h-3 bg-green-500 rounded-full animate-pulse" />
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-muted/50 rounded-xl">
+                  <div className="flex items-center gap-3">
+                    <Key className="w-5 h-5 text-primary" />
+                    <div>
+                      <p className="font-medium">Authentication</p>
+                      <p className="text-sm text-muted-foreground">Email/Password enabled</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-muted/50 rounded-xl">
+                  <div className="flex items-center gap-3">
+                    <Users className="w-5 h-5 text-primary" />
+                    <div>
+                      <p className="font-medium">Total Users</p>
+                      <p className="text-sm text-muted-foreground">{stats.totalEmployees} registered</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Email Settings */}
+            <EmailSettings />
           </motion.div>
         )}
 
