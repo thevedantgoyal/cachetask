@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AdminRoute } from "@/components/auth/AdminRoute";
+import { OrganizationRoute } from "@/components/auth/OrganizationRoute";
 import Index from "./pages/Index";
 import TasksPage from "./pages/TasksPage";
 import HistoryPage from "./pages/HistoryPage";
@@ -15,6 +16,7 @@ import AuthPage from "./pages/AuthPage";
 import AdminDashboard from "./pages/AdminDashboard";
 import ManagerDashboard from "./pages/ManagerDashboard";
 import SkillsPage from "./pages/SkillsPage";
+import ReportsPage from "./pages/ReportsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -35,6 +37,7 @@ const App = () => (
             <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
             <Route path="/skills" element={<ProtectedRoute><SkillsPage /></ProtectedRoute>} />
             <Route path="/manager" element={<ProtectedRoute><ManagerDashboard /></ProtectedRoute>} />
+            <Route path="/reports" element={<OrganizationRoute><ReportsPage /></OrganizationRoute>} />
             <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

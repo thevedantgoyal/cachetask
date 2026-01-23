@@ -321,7 +321,7 @@ const AdminDashboard = () => {
     }
   };
 
-  const roles = ["employee", "team_lead", "manager", "hr", "admin"];
+  const roles = ["employee", "team_lead", "manager", "hr", "admin", "organization"];
 
   // Filter employees
   const filteredEmployees = employees.filter((emp) => {

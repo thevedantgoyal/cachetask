@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 
-export type AppRole = "employee" | "team_lead" | "manager" | "hr" | "admin";
+export type AppRole = "employee" | "team_lead" | "manager" | "hr" | "admin" | "organization";
 
 interface UseUserRolesReturn {
   roles: AppRole[];
@@ -11,6 +11,7 @@ interface UseUserRolesReturn {
   isHR: boolean;
   isTeamLead: boolean;
   isEmployee: boolean;
+  isOrganization: boolean;
   hasRole: (role: AppRole) => boolean;
   hasAnyRole: (roles: AppRole[]) => boolean;
   loading: boolean;
@@ -62,6 +63,7 @@ export const useUserRoles = (): UseUserRolesReturn => {
     isHR: hasRole("hr"),
     isTeamLead: hasRole("team_lead"),
     isEmployee: hasRole("employee"),
+    isOrganization: hasRole("organization"),
     hasRole,
     hasAnyRole,
     loading,
