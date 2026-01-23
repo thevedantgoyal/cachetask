@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { sendTaskAssignedEmail } from "@/hooks/useEmailNotifications";
+import { sendPushNotification } from "@/hooks/usePushNotifications";
 
 export interface TeamMember {
   id: string;
@@ -234,11 +235,11 @@ export const useCreateTask = () => {
 
       if (error) throw error;
 
-      // Send email notification to assignee
+      // Send email and push notification to assignee
       if (assignedTo) {
         const { data: assigneeProfile } = await supabase
           .from("profiles")
-          .select("email")
+          .select("email, user_id")
           .eq("id", assignedTo)
           .maybeSingle();
 
@@ -248,6 +249,16 @@ export const useCreateTask = () => {
             title,
             managerProfile?.full_name
           ).catch((err) => console.error("Failed to send task assignment email:", err));
+        }
+
+        // Send push notification
+        if (assigneeProfile?.user_id) {
+          sendPushNotification(
+            assigneeProfile.user_id,
+            "New Task Assigned 📋",
+            `You've been assigned: "${title}"`,
+            { url: "/tasks", tag: "task-assigned" }
+          ).catch((err) => console.error("Failed to send task push notification:", err));
         }
       }
 

@@ -18,6 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { RoleBasedNav } from "@/components/layout/RoleBasedNav";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { NotificationPanel } from "@/components/notifications/NotificationPanel";
+import { PushNotificationToggle } from "@/components/notifications/PushNotificationToggle";
 import { toast } from "sonner";
 
 interface Profile {
@@ -280,6 +281,16 @@ const ProfilePage = () => {
                   <p className="text-muted-foreground text-sm">No manager assigned</p>
                 </div>
               )}
+            </div>
+          </motion.section>
+
+          {/* Notification Settings */}
+          <motion.section variants={itemVariants}>
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1">
+              Notification Settings
+            </h3>
+            <div className="bg-card rounded-2xl shadow-soft border border-border/50 overflow-hidden">
+              <PushNotificationToggle />
             </div>
           </motion.section>
 

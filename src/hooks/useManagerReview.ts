@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { createNotification } from "@/hooks/useNotifications";
 import { sendContributionApprovedEmail, sendContributionRejectedEmail } from "@/hooks/useEmailNotifications";
+import { sendPushNotification } from "@/hooks/usePushNotifications";
 
 export interface PendingContribution {
   id: string;
@@ -177,6 +178,16 @@ export const useReviewContribution = () => {
         } catch (notifError) {
           console.error("Failed to send notification:", notifError);
         }
+
+        // Send push notification
+        sendPushNotification(
+          contribution.user_id,
+          status === "approved" ? "Contribution Approved! 🎉" : "Contribution Needs Revision",
+          status === "approved"
+            ? `Your contribution "${contribution.title}" has been approved!`
+            : `Your contribution "${contribution.title}" needs revision.`,
+          { url: "/history", tag: "contribution-review" }
+        ).catch((err) => console.error("Failed to send push notification:", err));
 
         // Send email notification
         if (contributorEmail) {
