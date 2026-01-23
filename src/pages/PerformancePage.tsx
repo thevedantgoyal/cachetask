@@ -1,8 +1,11 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
-import { Users, MessageSquare, Lightbulb, Clock, Menu } from "lucide-react";
+import { Users, MessageSquare, Lightbulb, Clock, TrendingUp } from "lucide-react";
 import { ScoreCircle } from "@/components/ui/ScoreCircle";
 import { MetricCard } from "@/components/cards/MetricCard";
 import { RoleBasedNav } from "@/components/layout/RoleBasedNav";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { NotificationPanel } from "@/components/notifications/NotificationPanel";
 
 const metrics = [
   { icon: Users, label: "Collaboration", value: 70 },
@@ -27,20 +30,20 @@ const itemVariants = {
 };
 
 const PerformancePage = () => {
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const overallScore = 75;
-  const currentMonth = new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }).toUpperCase();
+  const currentMonth = new Date()
+    .toLocaleDateString("en-US", { month: "short", year: "numeric" })
+    .toUpperCase();
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-lg mx-auto page-container">
-        {/* Header */}
-        <header className="flex items-center justify-between py-4">
-          <button className="p-2 -ml-2 rounded-full hover:bg-muted transition-colors">
-            <Menu className="w-5 h-5" />
-          </button>
-          <h1 className="page-header py-0">My Performance</h1>
-          <div className="w-10" />
-        </header>
+    <div className="min-h-screen bg-background pb-24">
+      <div className="max-w-lg mx-auto px-4 py-2">
+        <PageHeader
+          title="My Performance"
+          showNotifications
+          onNotificationClick={() => setIsNotificationsOpen(true)}
+        />
 
         <motion.div
           variants={containerVariants}
@@ -49,27 +52,44 @@ const PerformancePage = () => {
           className="space-y-8"
         >
           {/* Score Circle */}
-          <motion.div variants={itemVariants} className="flex justify-center pt-4">
+          <motion.div
+            variants={itemVariants}
+            className="flex justify-center pt-4"
+          >
             <ScoreCircle score={overallScore} label="FOCUS SCORE" />
           </motion.div>
 
           {/* Insight Text */}
-          <motion.p
+          <motion.div
             variants={itemVariants}
-            className="text-center text-muted-foreground px-4"
+            className="bg-gradient-to-r from-primary/10 to-accent/10 rounded-2xl p-4 border border-primary/20"
           >
-            Your current performance indicates exceptional{" "}
-            <span className="font-semibold text-foreground">Collaboration</span>.
-            Keep aligning with your quarterly milestones.
-          </motion.p>
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-primary/10 rounded-xl">
+                <TrendingUp className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-sm">Performance Insight</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Your current performance indicates exceptional{" "}
+                  <span className="font-semibold text-foreground">
+                    Collaboration
+                  </span>
+                  . Keep aligning with your quarterly milestones.
+                </p>
+              </div>
+            </div>
+          </motion.div>
 
           {/* Metric Analysis */}
           <motion.section variants={itemVariants}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold">Metric Analysis</h3>
-              <span className="text-sm text-muted-foreground">{currentMonth}</span>
+              <span className="text-sm text-muted-foreground bg-muted px-3 py-1 rounded-full">
+                {currentMonth}
+              </span>
             </div>
-            
+
             <div className="space-y-2">
               {metrics.map((metric, index) => (
                 <motion.div
@@ -91,6 +111,11 @@ const PerformancePage = () => {
 
         <RoleBasedNav />
       </div>
+
+      <NotificationPanel
+        isOpen={isNotificationsOpen}
+        onClose={() => setIsNotificationsOpen(false)}
+      />
     </div>
   );
 };

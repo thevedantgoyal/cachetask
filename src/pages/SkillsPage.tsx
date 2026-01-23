@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { 
-  ChevronLeft, 
   Plus, 
   Target, 
   TrendingUp,
@@ -9,12 +8,13 @@ import {
   Edit,
   Loader2,
   X,
-  Check
+  Check,
+  Award
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { RoleBasedNav } from "@/components/layout/RoleBasedNav";
-import { SkillCard } from "@/components/cards/SkillCard";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { NotificationPanel } from "@/components/notifications/NotificationPanel";
 import { useSkills, useCreateSkill, useUpdateSkill, useDeleteSkill } from "@/hooks/useSkills";
 import { toast } from "sonner";
 
@@ -28,13 +28,21 @@ const itemVariants = {
   visible: { opacity: 1, y: 0 },
 };
 
+const levelColors = {
+  1: "bg-red-500",
+  2: "bg-orange-500",
+  3: "bg-yellow-500",
+  4: "bg-green-500",
+  5: "bg-primary",
+};
+
 const SkillsPage = () => {
-  const navigate = useNavigate();
   const { data: skills, isLoading } = useSkills();
   const createSkill = useCreateSkill();
   const updateSkill = useUpdateSkill();
   const deleteSkill = useDeleteSkill();
 
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingSkill, setEditingSkill] = useState<string | null>(null);
   const [newSkill, setNewSkill] = useState({
@@ -98,25 +106,24 @@ const SkillsPage = () => {
     });
   };
 
+  const skillsAtGoal = skills?.filter((s) => (s.proficiency_level || 0) >= (s.goal_level || 5)).length || 0;
+
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-lg mx-auto px-4 py-6">
-        {/* Header */}
-        <header className="flex items-center justify-between py-4 mb-6">
-          <button 
-            onClick={() => navigate("/")}
-            className="p-2 -ml-2 rounded-full hover:bg-muted transition-colors"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          <h1 className="text-xl font-display font-bold">Skills & Growth</h1>
-          <button 
-            onClick={() => setShowAddForm(true)}
-            className="p-2 -mr-2 rounded-full hover:bg-muted transition-colors"
-          >
-            <Plus className="w-5 h-5" />
-          </button>
-        </header>
+    <div className="min-h-screen bg-background pb-24">
+      <div className="max-w-lg mx-auto px-4 py-2">
+        <PageHeader
+          title="Skills & Growth"
+          showNotifications
+          onNotificationClick={() => setIsNotificationsOpen(true)}
+          rightElement={
+            <button
+              onClick={() => setShowAddForm(true)}
+              className="p-2 rounded-full hover:bg-muted transition-colors"
+            >
+              <Plus className="w-5 h-5" />
+            </button>
+          }
+        />
 
         {/* Add Skill Form */}
         {showAddForm && (
@@ -126,7 +133,10 @@ const SkillsPage = () => {
             className="bg-card rounded-2xl p-5 shadow-soft border border-border/50 mb-6"
           >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold">Add New Skill</h3>
+              <h3 className="font-semibold flex items-center gap-2">
+                <Award className="w-4 h-4 text-primary" />
+                Add New Skill
+              </h3>
               <button onClick={() => setShowAddForm(false)}>
                 <X className="w-5 h-5 text-muted-foreground" />
               </button>
@@ -194,9 +204,7 @@ const SkillsPage = () => {
               <TrendingUp className="w-4 h-4" />
               <span className="text-sm font-medium">At Goal</span>
             </div>
-            <p className="text-2xl font-bold">
-              {skills?.filter((s) => (s.proficiency_level || 0) >= (s.goal_level || 5)).length || 0}
-            </p>
+            <p className="text-2xl font-bold">{skillsAtGoal}</p>
           </div>
         </div>
 
@@ -212,81 +220,103 @@ const SkillsPage = () => {
             animate="visible"
             className="space-y-3"
           >
-            {skills.map((skill) => (
-              <motion.div
-                key={skill.id}
-                variants={itemVariants}
-                className="bg-card rounded-2xl p-4 shadow-soft border border-border/50"
-              >
-                {editingSkill === skill.id ? (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-semibold">{skill.name}</h3>
-                      <div className="flex gap-1">
-                        <button
-                          onClick={() => handleUpdateSkill(skill.id)}
-                          className="p-2 hover:bg-success/10 rounded-lg text-success"
-                        >
-                          <Check className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => setEditingSkill(null)}
-                          className="p-2 hover:bg-muted rounded-lg"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
+            {skills.map((skill) => {
+              const currentLevel = skill.proficiency_level || 1;
+              const goalLevel = skill.goal_level || 5;
+              const progress = (currentLevel / goalLevel) * 100;
+              const atGoal = currentLevel >= goalLevel;
+
+              return (
+                <motion.div
+                  key={skill.id}
+                  variants={itemVariants}
+                  className="bg-card rounded-2xl p-4 shadow-soft border border-border/50"
+                >
+                  {editingSkill === skill.id ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-semibold">{skill.name}</h3>
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => handleUpdateSkill(skill.id)}
+                            className="p-2 hover:bg-success/10 rounded-lg text-success"
+                          >
+                            <Check className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => setEditingSkill(null)}
+                            className="p-2 hover:bg-muted rounded-lg"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-xs text-muted-foreground">Current</label>
+                          <select
+                            value={editValues.proficiency_level}
+                            onChange={(e) => setEditValues({ ...editValues, proficiency_level: Number(e.target.value) })}
+                            className="w-full p-2 rounded-lg border border-border bg-background text-sm"
+                          >
+                            {[1, 2, 3, 4, 5].map((level) => (
+                              <option key={level} value={level}>{level}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">Goal</label>
+                          <select
+                            value={editValues.goal_level}
+                            onChange={(e) => setEditValues({ ...editValues, goal_level: Number(e.target.value) })}
+                            className="w-full p-2 rounded-lg border border-border bg-background text-sm"
+                          >
+                            {[1, 2, 3, 4, 5].map((level) => (
+                              <option key={level} value={level}>{level}</option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-xs text-muted-foreground">Current</label>
-                        <select
-                          value={editValues.proficiency_level}
-                          onChange={(e) => setEditValues({ ...editValues, proficiency_level: Number(e.target.value) })}
-                          className="w-full p-2 rounded-lg border border-border bg-background text-sm"
-                        >
-                          {[1, 2, 3, 4, 5].map((level) => (
-                            <option key={level} value={level}>{level}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-xs text-muted-foreground">Goal</label>
-                        <select
-                          value={editValues.goal_level}
-                          onChange={(e) => setEditValues({ ...editValues, goal_level: Number(e.target.value) })}
-                          className="w-full p-2 rounded-lg border border-border bg-background text-sm"
-                        >
-                          {[1, 2, 3, 4, 5].map((level) => (
-                            <option key={level} value={level}>{level}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-between">
+                  ) : (
                     <div>
-                      <h3 className="font-semibold">{skill.name}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Level {skill.proficiency_level || 1} → Goal: {skill.goal_level || 5}
-                      </p>
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="font-semibold">{skill.name}</h3>
+                        <div className="flex gap-1">
+                          <button onClick={() => startEditing(skill)} className="p-2 hover:bg-muted rounded-lg">
+                            <Edit className="w-4 h-4 text-muted-foreground" />
+                          </button>
+                          <button onClick={() => handleDeleteSkill(skill.id)} className="p-2 hover:bg-destructive/10 rounded-lg">
+                            <Trash2 className="w-4 h-4 text-destructive" />
+                          </button>
+                        </div>
+                      </div>
+                      
+                      {/* Progress Bar */}
+                      <div className="mt-3">
+                        <div className="flex items-center justify-between text-sm mb-1">
+                          <span className="text-muted-foreground">
+                            Level {currentLevel} of {goalLevel}
+                          </span>
+                          {atGoal && (
+                            <span className="text-success text-xs font-medium">✓ Goal reached!</span>
+                          )}
+                        </div>
+                        <div className="h-2 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all ${atGoal ? 'bg-success' : levelColors[currentLevel as keyof typeof levelColors] || 'bg-primary'}`}
+                            style={{ width: `${Math.min(progress, 100)}%` }}
+                          />
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex gap-1">
-                      <button onClick={() => startEditing(skill)} className="p-2 hover:bg-muted rounded-lg">
-                        <Edit className="w-4 h-4 text-muted-foreground" />
-                      </button>
-                      <button onClick={() => handleDeleteSkill(skill.id)} className="p-2 hover:bg-destructive/10 rounded-lg">
-                        <Trash2 className="w-4 h-4 text-destructive" />
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </motion.div>
-            ))}
+                  )}
+                </motion.div>
+              );
+            })}
           </motion.div>
         ) : (
-          <div className="text-center py-12">
+          <div className="text-center py-12 bg-card rounded-2xl border border-border/50">
             <Target className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="font-semibold text-lg">No skills tracked yet</h3>
             <p className="text-muted-foreground mt-1 mb-4">
@@ -301,6 +331,11 @@ const SkillsPage = () => {
 
         <RoleBasedNav />
       </div>
+
+      <NotificationPanel
+        isOpen={isNotificationsOpen}
+        onClose={() => setIsNotificationsOpen(false)}
+      />
     </div>
   );
 };

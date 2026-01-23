@@ -148,16 +148,18 @@ const Index = () => {
             <motion.div variants={itemVariants}>
               <Link
                 to="/manager"
-                className="block bg-gradient-to-r from-primary/10 to-accent/10 rounded-2xl p-4 border border-primary/20 hover:border-primary/40 transition-colors"
+                className="block bg-gradient-to-r from-primary/10 via-primary/5 to-accent/10 rounded-2xl p-5 border border-primary/20 hover:border-primary/40 hover:shadow-card transition-all"
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="font-semibold">Review Contributions</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Approve or review team submissions
+                    <h3 className="font-semibold text-lg">Manager Dashboard</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Review contributions & manage tasks
                     </p>
                   </div>
-                  <Users className="w-8 h-8 text-primary/60" />
+                  <div className="p-3 bg-primary/10 rounded-xl">
+                    <Users className="w-6 h-6 text-primary" />
+                  </div>
                 </div>
               </Link>
             </motion.div>

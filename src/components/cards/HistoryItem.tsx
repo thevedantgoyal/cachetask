@@ -1,4 +1,4 @@
-import { LucideIcon } from "lucide-react";
+import { LucideIcon, CheckCircle, XCircle, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface HistoryItemProps {
@@ -8,16 +8,25 @@ interface HistoryItemProps {
   className?: string;
 }
 
-const statusStyles = {
-  pending: "text-pending",
-  approved: "text-success",
-  rejected: "text-destructive",
-};
-
-const statusLabels = {
-  pending: "Pending",
-  approved: "Approved",
-  rejected: "Rejected",
+const statusConfig = {
+  pending: {
+    icon: Clock,
+    color: "text-yellow-500",
+    bg: "bg-yellow-500/10",
+    label: "Pending",
+  },
+  approved: {
+    icon: CheckCircle,
+    color: "text-green-500",
+    bg: "bg-green-500/10",
+    label: "Approved",
+  },
+  rejected: {
+    icon: XCircle,
+    color: "text-destructive",
+    bg: "bg-destructive/10",
+    label: "Rejected",
+  },
 };
 
 export const HistoryItem = ({
@@ -26,15 +35,33 @@ export const HistoryItem = ({
   status,
   className,
 }: HistoryItemProps) => {
+  const config = statusConfig[status];
+  const StatusIcon = config.icon;
+
   return (
-    <div className={cn("flex items-start gap-3 py-3", className)}>
-      <Icon className="w-5 h-5 text-muted-foreground mt-0.5 flex-shrink-0" />
-      <div className="flex-1 min-w-0 border-l-2 border-muted pl-3">
-        <h4 className="font-medium text-foreground">{title}</h4>
-        <span className={cn("text-sm font-medium", statusStyles[status])}>
-          {statusLabels[status]}
-        </span>
+    <div
+      className={cn(
+        "bg-card rounded-xl p-3 shadow-soft border border-border/50 flex items-center gap-3",
+        className
+      )}
+    >
+      <div className={cn("p-2 rounded-lg", config.bg)}>
+        <StatusIcon className={cn("w-4 h-4", config.color)} />
       </div>
+      <div className="flex-1 min-w-0">
+        <h4 className="font-medium text-foreground text-sm line-clamp-1">
+          {title}
+        </h4>
+      </div>
+      <span
+        className={cn(
+          "text-xs font-medium px-2 py-1 rounded-full",
+          config.bg,
+          config.color
+        )}
+      >
+        {config.label}
+      </span>
     </div>
   );
 };
