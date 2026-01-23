@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { FileText, ChevronLeft, Loader2 } from "lucide-react";
 import { HistoryItem } from "@/components/cards/HistoryItem";
-import { BottomNav } from "@/components/layout/BottomNav";
+import { RoleBasedNav } from "@/components/layout/RoleBasedNav";
 import { useNavigate } from "react-router-dom";
 import { useContributions, groupContributionsByDate } from "@/hooks/useContributions";
 
@@ -84,7 +84,7 @@ const HistoryPage = () => {
           </div>
         )}
 
-        <BottomNav />
+        <RoleBasedNav />
       </div>
     </div>
   );

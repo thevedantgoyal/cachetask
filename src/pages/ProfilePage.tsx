@@ -13,7 +13,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { BottomNav } from "@/components/layout/BottomNav";
+import { RoleBasedNav } from "@/components/layout/RoleBasedNav";
 import { toast } from "sonner";
 
 interface Profile {
@@ -271,7 +271,7 @@ const ProfilePage = () => {
           </motion.section>
         </motion.div>
 
-        <BottomNav />
+        <RoleBasedNav />
       </div>
     </div>
   );

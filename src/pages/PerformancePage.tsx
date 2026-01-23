@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import { Users, MessageSquare, Lightbulb, Clock, Menu } from "lucide-react";
 import { ScoreCircle } from "@/components/ui/ScoreCircle";
 import { MetricCard } from "@/components/cards/MetricCard";
-import { BottomNav } from "@/components/layout/BottomNav";
+import { RoleBasedNav } from "@/components/layout/RoleBasedNav";
 
 const metrics = [
   { icon: Users, label: "Collaboration", value: 70 },
@@ -89,7 +89,7 @@ const PerformancePage = () => {
           </motion.section>
         </motion.div>
 
-        <BottomNav />
+        <RoleBasedNav />
       </div>
     </div>
   );

@@ -118,12 +118,12 @@ const AuthPage = () => {
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.1 }}
-          className="w-full h-48 rounded-2xl overflow-hidden mb-6 bg-gradient-to-r from-slate-700 via-slate-500 to-slate-400"
+          className="w-full h-48 rounded-2xl overflow-hidden mb-6 bg-gradient-to-br from-primary via-primary/80 to-accent"
         >
           <div className="w-full h-full flex items-center justify-center">
-            <div className="text-center text-white">
+            <div className="text-center text-primary-foreground">
               <div className="text-4xl font-display font-bold mb-2">MIRROR</div>
-              <p className="text-sm opacity-80">Performance Tracking System</p>
+              <p className="text-sm opacity-90">Performance Tracking System</p>
             </div>
           </div>
         </motion.div>

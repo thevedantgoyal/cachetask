@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { BottomNav } from "@/components/layout/BottomNav";
+import { RoleBasedNav } from "@/components/layout/RoleBasedNav";
 import { SkillCard } from "@/components/cards/SkillCard";
 import { useSkills, useCreateSkill, useUpdateSkill, useDeleteSkill } from "@/hooks/useSkills";
 import { toast } from "sonner";
@@ -299,7 +299,7 @@ const SkillsPage = () => {
           </div>
         )}
 
-        <BottomNav />
+        <RoleBasedNav />
       </div>
     </div>
   );
