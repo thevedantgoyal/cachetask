@@ -331,6 +331,51 @@ export type Database = {
         }
         Relationships: []
       }
+      scheduled_notifications: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          message: string
+          scheduled_at: string
+          send_email: boolean
+          send_push: boolean
+          sent_at: string | null
+          status: string
+          target_type: string
+          target_value: string | null
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          message: string
+          scheduled_at: string
+          send_email?: boolean
+          send_push?: boolean
+          sent_at?: string | null
+          status?: string
+          target_type: string
+          target_value?: string | null
+          title: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          message?: string
+          scheduled_at?: string
+          send_email?: boolean
+          send_push?: boolean
+          sent_at?: string | null
+          status?: string
+          target_type?: string
+          target_value?: string | null
+          title?: string
+        }
+        Relationships: []
+      }
       skills: {
         Row: {
           created_at: string

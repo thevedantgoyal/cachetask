@@ -20,6 +20,7 @@ import {
   UsersRound,
   FileUp,
   Download,
+  Bell,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,6 +30,7 @@ import { z } from "zod";
 import { RoleBasedNav } from "@/components/layout/RoleBasedNav";
 import { TeamManagement } from "@/components/admin/TeamManagement";
 import { EmailSettings } from "@/components/admin/EmailSettings";
+import { NotificationBroadcast } from "@/components/admin/NotificationBroadcast";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { NotificationPanel } from "@/components/notifications/NotificationPanel";
 import { createNotification } from "@/hooks/useNotifications";
@@ -77,7 +79,7 @@ const itemVariants = {
   visible: { opacity: 1, y: 0 },
 };
 
-type TabType = "overview" | "employees" | "teams" | "bulk" | "roles" | "settings";
+type TabType = "overview" | "employees" | "teams" | "bulk" | "roles" | "notifications" | "settings";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -415,6 +417,7 @@ bob@company.com,Bob Wilson,Team Lead,Design,Remote,team_lead`;
     { id: "teams", label: "Teams", icon: UsersRound },
     { id: "bulk", label: "Bulk Onboard", icon: Upload },
     { id: "roles", label: "Roles", icon: Shield },
+    { id: "notifications", label: "Broadcast", icon: Bell },
     { id: "settings", label: "Settings", icon: Settings },
   ];
 
@@ -937,6 +940,11 @@ bob@company.com, Bob Wilson, Designer, Design, Remote, team_lead`}
         )}
 
         {/* Settings Tab */}
+        {/* Notifications Broadcast Tab */}
+        {activeTab === "notifications" && (
+          <NotificationBroadcast employees={employees} />
+        )}
+
         {activeTab === "settings" && (
           <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-6">
             {/* System Info */}
