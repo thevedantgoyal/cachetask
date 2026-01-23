@@ -294,3 +294,62 @@ export const useDeleteTask = () => {
     },
   });
 };
+
+// Update a task
+export const useUpdateTask = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      taskId,
+      title,
+      description,
+      assignedTo,
+      projectId,
+      priority,
+      dueDate,
+      status,
+    }: {
+      taskId: string;
+      title: string;
+      description?: string;
+      assignedTo?: string | null;
+      projectId?: string | null;
+      priority?: string;
+      dueDate?: string | null;
+      status?: string;
+    }) => {
+      const updateData: Record<string, unknown> = {
+        title,
+        description: description || null,
+        assigned_to: assignedTo || null,
+        project_id: projectId || null,
+        priority: priority || "medium",
+        due_date: dueDate || null,
+      };
+
+      if (status) {
+        updateData.status = status;
+        if (status === "completed") {
+          updateData.completed_at = new Date().toISOString();
+        } else {
+          updateData.completed_at = null;
+        }
+      }
+
+      const { data, error } = await supabase
+        .from("tasks")
+        .update(updateData)
+        .eq("id", taskId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["managed-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+    },
+  });
+};
