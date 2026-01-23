@@ -1,7 +1,10 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
-import { Plus, Menu, Loader2 } from "lucide-react";
+import { Loader2, ClipboardList, Filter } from "lucide-react";
 import { TaskCard } from "@/components/cards/TaskCard";
 import { RoleBasedNav } from "@/components/layout/RoleBasedNav";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { NotificationPanel } from "@/components/notifications/NotificationPanel";
 import { useTasks, formatDueLabel } from "@/hooks/useTasks";
 
 const containerVariants = {
@@ -21,20 +24,46 @@ const itemVariants = {
 
 const TasksPage = () => {
   const { data: tasks, isLoading, error } = useTasks();
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [filterPriority, setFilterPriority] = useState<string>("");
+
+  const filteredTasks = filterPriority
+    ? tasks?.filter((t) => t.priority === filterPriority)
+    : tasks;
+
+  const priorityFilters = [
+    { value: "", label: "All" },
+    { value: "urgent", label: "Urgent" },
+    { value: "high", label: "High" },
+    { value: "medium", label: "Medium" },
+    { value: "low", label: "Low" },
+  ];
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-lg mx-auto page-container">
-        {/* Header */}
-        <header className="flex items-center justify-between py-4">
-          <button className="p-2 -ml-2 rounded-full hover:bg-muted transition-colors">
-            <Menu className="w-5 h-5" />
-          </button>
-          <h1 className="page-header py-0">My Tasks</h1>
-          <button className="p-2 -mr-2 rounded-full hover:bg-muted transition-colors">
-            <Plus className="w-5 h-5" />
-          </button>
-        </header>
+    <div className="min-h-screen bg-background pb-24">
+      <div className="max-w-lg mx-auto px-4 py-2">
+        <PageHeader
+          title="My Tasks"
+          showNotifications
+          onNotificationClick={() => setIsNotificationsOpen(true)}
+        />
+
+        {/* Filter Pills */}
+        <div className="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide">
+          {priorityFilters.map((filter) => (
+            <button
+              key={filter.value}
+              onClick={() => setFilterPriority(filter.value)}
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors whitespace-nowrap ${
+                filterPriority === filter.value
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-card hover:bg-muted border border-border"
+              }`}
+            >
+              {filter.label}
+            </button>
+          ))}
+        </div>
 
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
@@ -44,14 +73,14 @@ const TasksPage = () => {
           <div className="text-center py-12 text-destructive">
             Failed to load tasks
           </div>
-        ) : tasks && tasks.length > 0 ? (
+        ) : filteredTasks && filteredTasks.length > 0 ? (
           <motion.div
             variants={containerVariants}
             initial="hidden"
             animate="visible"
-            className="space-y-3 mt-2"
+            className="space-y-3"
           >
-            {tasks.map((task, index) => (
+            {filteredTasks.map((task, index) => (
               <motion.div
                 key={task.id}
                 variants={itemVariants}
@@ -62,21 +91,30 @@ const TasksPage = () => {
                   description={task.description || undefined}
                   project={task.project_name || "No Project"}
                   dueLabel={formatDueLabel(task.due_date)}
+                  priority={task.priority}
                 />
               </motion.div>
             ))}
           </motion.div>
         ) : (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">No tasks assigned to you</p>
+          <div className="text-center py-12 bg-card rounded-2xl border border-border/50">
+            <ClipboardList className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="font-semibold">No tasks found</h3>
             <p className="text-sm text-muted-foreground mt-1">
-              Tasks will appear here when assigned by your manager
+              {filterPriority
+                ? "Try a different filter"
+                : "Tasks will appear here when assigned by your manager"}
             </p>
           </div>
         )}
 
         <RoleBasedNav />
       </div>
+
+      <NotificationPanel
+        isOpen={isNotificationsOpen}
+        onClose={() => setIsNotificationsOpen(false)}
+      />
     </div>
   );
 };

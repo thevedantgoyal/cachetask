@@ -1,12 +1,15 @@
 import { ChevronLeft, Settings, Menu } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 interface PageHeaderProps {
   title: string;
   showBack?: boolean;
   showSettings?: boolean;
   showMenu?: boolean;
+  showNotifications?: boolean;
+  onNotificationClick?: () => void;
   rightElement?: React.ReactNode;
   className?: string;
 }
@@ -16,6 +19,8 @@ export const PageHeader = ({
   showBack = false,
   showSettings = false,
   showMenu = false,
+  showNotifications = false,
+  onNotificationClick,
   rightElement,
   className,
 }: PageHeaderProps) => {
@@ -39,15 +44,19 @@ export const PageHeader = ({
         )}
       </div>
       
-      <h1 className="page-header py-0">{title}</h1>
+      <h1 className="text-xl font-display font-bold">{title}</h1>
       
-      <div className="w-10 flex justify-end">
+      <div className="flex items-center gap-1">
+        {showNotifications && onNotificationClick && (
+          <NotificationBell onClick={onNotificationClick} />
+        )}
         {showSettings && (
-          <button className="p-2 -mr-2 rounded-full hover:bg-muted transition-colors">
+          <button className="p-2 rounded-full hover:bg-muted transition-colors">
             <Settings className="w-5 h-5 text-muted-foreground" />
           </button>
         )}
         {rightElement}
+        {!showNotifications && !showSettings && !rightElement && <div className="w-10" />}
       </div>
     </header>
   );

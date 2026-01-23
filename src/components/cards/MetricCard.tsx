@@ -1,5 +1,4 @@
 import { LucideIcon, Info } from "lucide-react";
-import { ProgressBar } from "@/components/ui/ProgressBar";
 import { cn } from "@/lib/utils";
 
 interface MetricCardProps {
@@ -12,6 +11,12 @@ interface MetricCardProps {
   className?: string;
 }
 
+const variantStyles = {
+  default: "bg-primary/10 text-primary",
+  success: "bg-green-500/10 text-green-500",
+  warning: "bg-yellow-500/10 text-yellow-500",
+};
+
 export const MetricCard = ({
   icon: Icon,
   label,
@@ -21,19 +26,37 @@ export const MetricCard = ({
   variant = "default",
   className,
 }: MetricCardProps) => {
+  const percentage = Math.min((value / maxValue) * 100, 100);
+
   return (
-    <div className={cn("metric-item", className)}>
-      <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center flex-shrink-0">
-        <Icon className="w-5 h-5 text-primary" />
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="font-medium text-foreground">{label}</span>
-          {showInfo && (
-            <Info className="w-4 h-4 text-muted-foreground/50" />
-          )}
+    <div
+      className={cn(
+        "bg-card rounded-2xl p-4 shadow-soft border border-border/50",
+        className
+      )}
+    >
+      <div className="flex items-center justify-between mb-3">
+        <div className={cn("p-2 rounded-xl", variantStyles[variant])}>
+          <Icon className="w-5 h-5" />
         </div>
-        <ProgressBar value={value} max={maxValue} showValue variant={variant} />
+        {showInfo && (
+          <Info className="w-4 h-4 text-muted-foreground/40" />
+        )}
+      </div>
+      <p className="text-2xl font-bold">{value}</p>
+      <p className="text-sm text-muted-foreground">{label}</p>
+      
+      {/* Progress Bar */}
+      <div className="mt-3 h-1.5 bg-muted rounded-full overflow-hidden">
+        <div
+          className={cn(
+            "h-full rounded-full transition-all",
+            variant === "success" && "bg-green-500",
+            variant === "warning" && "bg-yellow-500",
+            variant === "default" && "bg-primary"
+          )}
+          style={{ width: `${percentage}%` }}
+        />
       </div>
     </div>
   );
