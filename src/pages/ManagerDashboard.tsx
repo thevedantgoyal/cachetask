@@ -7,16 +7,17 @@ import {
   Clock, 
   User,
   FileText,
-  Image as ImageIcon,
   ExternalLink,
   Loader2
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { BottomNav } from "@/components/layout/BottomNav";
+import { RoleBasedNav } from "@/components/layout/RoleBasedNav";
 import { usePendingContributions, useReviewContribution } from "@/hooks/useManagerReview";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { NotificationPanel } from "@/components/notifications/NotificationPanel";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -34,6 +35,7 @@ const ManagerDashboard = () => {
   const reviewMutation = useReviewContribution();
   const [reviewingId, setReviewingId] = useState<string | null>(null);
   const [reviewNotes, setReviewNotes] = useState("");
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
 
   const handleReview = async (id: string, status: "approved" | "rejected") => {
     try {
@@ -62,7 +64,7 @@ const ManagerDashboard = () => {
             <ChevronLeft className="w-5 h-5" />
           </button>
           <h1 className="text-xl font-display font-bold">Review Contributions</h1>
-          <div className="w-10" />
+          <NotificationBell onClick={() => setIsNotificationsOpen(true)} />
         </header>
 
         {isLoading ? (
@@ -206,8 +208,13 @@ const ManagerDashboard = () => {
           </div>
         )}
 
-        <BottomNav />
+        <RoleBasedNav />
       </div>
+
+      <NotificationPanel
+        isOpen={isNotificationsOpen}
+        onClose={() => setIsNotificationsOpen(false)}
+      />
     </div>
   );
 };

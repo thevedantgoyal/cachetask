@@ -11,6 +11,8 @@ import { AddWorkUpdateModal } from "@/components/modals/AddWorkUpdateModal";
 import { useHomeTasks, useHomeStats, formatDueLabel } from "@/hooks/useHomeData";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { Skeleton } from "@/components/ui/skeleton";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { NotificationPanel } from "@/components/notifications/NotificationPanel";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -30,6 +32,7 @@ const itemVariants = {
 const Index = () => {
   const { user } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [profileName, setProfileName] = useState<string | null>(null);
 
   const { hasAnyRole, loading: rolesLoading } = useUserRoles();
@@ -70,6 +73,7 @@ const Index = () => {
         <header className="flex items-center justify-between py-2">
           <h2 className="text-lg font-semibold">Home</h2>
           <div className="flex items-center gap-1">
+            <NotificationBell onClick={() => setIsNotificationsOpen(true)} />
             <Link
               to="/profile"
               className="p-2 rounded-full hover:bg-muted transition-colors"
@@ -219,6 +223,11 @@ const Index = () => {
       <AddWorkUpdateModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
+      />
+
+      <NotificationPanel
+        isOpen={isNotificationsOpen}
+        onClose={() => setIsNotificationsOpen(false)}
       />
     </div>
   );
