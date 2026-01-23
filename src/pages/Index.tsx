@@ -1,14 +1,15 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Settings, Plus, Shield, CheckCircle, Clock, TrendingUp, ListTodo } from "lucide-react";
+import { Settings, Plus, CheckCircle, Clock, TrendingUp, ListTodo, Users } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { TaskCard } from "@/components/cards/TaskCard";
 import { MetricCard } from "@/components/cards/MetricCard";
-import { BottomNav } from "@/components/layout/BottomNav";
+import { RoleBasedNav } from "@/components/layout/RoleBasedNav";
 import { AddWorkUpdateModal } from "@/components/modals/AddWorkUpdateModal";
 import { useHomeTasks, useHomeStats, formatDueLabel } from "@/hooks/useHomeData";
+import { useUserRoles } from "@/hooks/useUserRoles";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const containerVariants = {
@@ -29,33 +30,18 @@ const itemVariants = {
 const Index = () => {
   const { user } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isManager, setIsManager] = useState(false);
   const [profileName, setProfileName] = useState<string | null>(null);
 
+  const { hasAnyRole, loading: rolesLoading } = useUserRoles();
   const { data: tasks, isLoading: tasksLoading } = useHomeTasks();
   const { data: stats, isLoading: statsLoading } = useHomeStats();
 
+  const canReviewContributions = hasAnyRole(["manager", "team_lead", "hr", "admin"]);
+
   useEffect(() => {
-    const checkRolesAndProfile = async () => {
+    const fetchProfile = async () => {
       if (!user) return;
 
-      // Check roles
-      const { data: roles } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id);
-
-      const userRoles = roles?.map((r) => r.role) || [];
-      setIsAdmin(userRoles.includes("admin"));
-      setIsManager(
-        userRoles.includes("manager") ||
-        userRoles.includes("team_lead") ||
-        userRoles.includes("hr") ||
-        userRoles.includes("admin")
-      );
-
-      // Get profile name
       const { data: profileData } = await supabase
         .from("profiles")
         .select("full_name")
@@ -67,7 +53,7 @@ const Index = () => {
       }
     };
 
-    checkRolesAndProfile();
+    fetchProfile();
   }, [user]);
 
   const getGreeting = () => {
@@ -84,18 +70,13 @@ const Index = () => {
         <header className="flex items-center justify-between py-2">
           <h2 className="text-lg font-semibold">Home</h2>
           <div className="flex items-center gap-1">
-            {isAdmin && (
-              <Link
-                to="/admin"
-                className="p-2 rounded-full hover:bg-muted transition-colors"
-                title="Admin Dashboard"
-              >
-                <Shield className="w-5 h-5 text-primary" />
-              </Link>
-            )}
-            <button className="p-2 rounded-full hover:bg-muted transition-colors">
+            <Link
+              to="/profile"
+              className="p-2 rounded-full hover:bg-muted transition-colors"
+              title="Settings"
+            >
               <Settings className="w-5 h-5 text-muted-foreground" />
-            </button>
+            </Link>
           </div>
         </header>
 
@@ -159,7 +140,7 @@ const Index = () => {
           </motion.div>
 
           {/* Manager Quick Access */}
-          {isManager && (
+          {!rolesLoading && canReviewContributions && (
             <motion.div variants={itemVariants}>
               <Link
                 to="/manager"
@@ -172,7 +153,7 @@ const Index = () => {
                       Approve or review team submissions
                     </p>
                   </div>
-                  <Shield className="w-8 h-8 text-primary/60" />
+                  <Users className="w-8 h-8 text-primary/60" />
                 </div>
               </Link>
             </motion.div>
@@ -232,7 +213,7 @@ const Index = () => {
           <Plus className="w-6 h-6" />
         </motion.button>
 
-        <BottomNav />
+        <RoleBasedNav />
       </div>
 
       <AddWorkUpdateModal 
