@@ -1,25 +1,29 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
   Building2,
   Users,
   BarChart3,
-  TrendingUp,
   CheckCircle,
   Clock,
   AlertCircle,
   UserCheck,
   Briefcase,
   Target,
+  CalendarDays,
 } from "lucide-react";
+import { format, subDays, startOfMonth, endOfMonth, subMonths, isWithinInterval, parseISO } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { RoleBasedNav } from "@/components/layout/RoleBasedNav";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { NotificationPanel } from "@/components/notifications/NotificationPanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
 
 interface RoleStats {
   role: string;
@@ -43,11 +47,29 @@ interface TeamMember {
   job_title: string | null;
   department: string | null;
   role: string;
+  created_at: string;
 }
 
 interface PerformanceData {
   category: string;
   avgScore: number;
+}
+
+interface Task {
+  status: string | null;
+  created_at: string;
+}
+
+interface Contribution {
+  status: string | null;
+  created_at: string;
+}
+
+interface PerformanceMetric {
+  score: number;
+  category_id: string;
+  created_at: string;
+  metric_categories: { name: string } | null;
 }
 
 const containerVariants = {
@@ -60,83 +82,49 @@ const itemVariants = {
   visible: { opacity: 1, y: 0 },
 };
 
+type DatePreset = "all" | "7d" | "30d" | "this_month" | "last_month" | "custom";
+
 const ReportsPage = () => {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [roleStats, setRoleStats] = useState<RoleStats[]>([]);
-  const [taskStats, setTaskStats] = useState<TaskStats[]>([]);
-  const [contributionStats, setContributionStats] = useState<ContributionStats[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
-  const [performanceData, setPerformanceData] = useState<PerformanceData[]>([]);
+  const [allTasks, setAllTasks] = useState<Task[]>([]);
+  const [allContributions, setAllContributions] = useState<Contribution[]>([]);
+  const [allMetrics, setAllMetrics] = useState<PerformanceMetric[]>([]);
+  const [allRoles, setAllRoles] = useState<{ user_id: string; role: string }[]>([]);
+
+  // Date filter state
+  const [datePreset, setDatePreset] = useState<DatePreset>("all");
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
 
   useEffect(() => {
     const fetchReportData = async () => {
       setLoading(true);
       try {
-        // Fetch all profiles with roles
-        const { data: profiles } = await supabase
-          .from("profiles")
-          .select("id, full_name, email, job_title, department");
+        const [profilesRes, rolesRes, tasksRes, contributionsRes, metricsRes] = await Promise.all([
+          supabase.from("profiles").select("id, full_name, email, job_title, department, created_at"),
+          supabase.from("user_roles").select("user_id, role"),
+          supabase.from("tasks").select("status, created_at"),
+          supabase.from("contributions").select("status, created_at"),
+          supabase.from("performance_metrics").select("score, category_id, created_at, metric_categories(name)"),
+        ]);
 
-        const { data: roles } = await supabase.from("user_roles").select("user_id, role");
+        const profiles = profilesRes.data || [];
+        const roles = rolesRes.data || [];
+        setAllRoles(roles);
 
-        // Combine profiles with roles
-        const membersWithRoles: TeamMember[] = (profiles || []).map((p) => {
-          const userRole = roles?.find((r) => r.user_id === p.id);
+        const membersWithRoles: TeamMember[] = profiles.map((p) => {
+          const userRole = roles.find((r) => r.user_id === p.id);
           return {
             ...p,
             role: userRole?.role || "employee",
           };
         });
         setTeamMembers(membersWithRoles);
-
-        // Calculate role distribution
-        const roleCount: Record<string, number> = {};
-        (roles || []).forEach((r) => {
-          roleCount[r.role] = (roleCount[r.role] || 0) + 1;
-        });
-        setRoleStats(Object.entries(roleCount).map(([role, count]) => ({ role, count })));
-
-        // Fetch task statistics
-        const { data: tasks } = await supabase.from("tasks").select("status");
-        const taskCount: Record<string, number> = {};
-        (tasks || []).forEach((t) => {
-          const status = t.status || "pending";
-          taskCount[status] = (taskCount[status] || 0) + 1;
-        });
-        setTaskStats(Object.entries(taskCount).map(([status, count]) => ({ status, count })));
-
-        // Fetch contribution statistics
-        const { data: contributions } = await supabase.from("contributions").select("status");
-        const contribCount: Record<string, number> = {};
-        (contributions || []).forEach((c) => {
-          const status = c.status || "pending";
-          contribCount[status] = (contribCount[status] || 0) + 1;
-        });
-        setContributionStats(
-          Object.entries(contribCount).map(([status, count]) => ({ status, count }))
-        );
-
-        // Fetch performance metrics
-        const { data: metrics } = await supabase
-          .from("performance_metrics")
-          .select("score, category_id, metric_categories(name)");
-
-        const perfByCategory: Record<string, { total: number; count: number }> = {};
-        (metrics || []).forEach((m: any) => {
-          const catName = m.metric_categories?.name || "General";
-          if (!perfByCategory[catName]) {
-            perfByCategory[catName] = { total: 0, count: 0 };
-          }
-          perfByCategory[catName].total += m.score;
-          perfByCategory[catName].count += 1;
-        });
-        setPerformanceData(
-          Object.entries(perfByCategory).map(([category, data]) => ({
-            category,
-            avgScore: Math.round(data.total / data.count),
-          }))
-        );
+        setAllTasks(tasksRes.data || []);
+        setAllContributions(contributionsRes.data || []);
+        setAllMetrics((metricsRes.data as PerformanceMetric[]) || []);
       } catch (err) {
         console.error("Error fetching report data:", err);
       } finally {
@@ -146,6 +134,105 @@ const ReportsPage = () => {
 
     fetchReportData();
   }, []);
+
+  // Calculate effective date range based on preset
+  const { effectiveStart, effectiveEnd } = useMemo(() => {
+    const now = new Date();
+    let start: Date | undefined;
+    let end: Date | undefined = now;
+
+    switch (datePreset) {
+      case "7d":
+        start = subDays(now, 7);
+        break;
+      case "30d":
+        start = subDays(now, 30);
+        break;
+      case "this_month":
+        start = startOfMonth(now);
+        end = endOfMonth(now);
+        break;
+      case "last_month":
+        const lastMonth = subMonths(now, 1);
+        start = startOfMonth(lastMonth);
+        end = endOfMonth(lastMonth);
+        break;
+      case "custom":
+        start = startDate;
+        end = endDate;
+        break;
+      case "all":
+      default:
+        start = undefined;
+        end = undefined;
+    }
+
+    return { effectiveStart: start, effectiveEnd: end };
+  }, [datePreset, startDate, endDate]);
+
+  // Filter helper
+  const isInDateRange = (dateStr: string) => {
+    if (!effectiveStart && !effectiveEnd) return true;
+    try {
+      const date = parseISO(dateStr);
+      if (effectiveStart && effectiveEnd) {
+        return isWithinInterval(date, { start: effectiveStart, end: effectiveEnd });
+      }
+      if (effectiveStart) return date >= effectiveStart;
+      if (effectiveEnd) return date <= effectiveEnd;
+      return true;
+    } catch {
+      return true;
+    }
+  };
+
+  // Filtered data
+  const filteredTasks = useMemo(() => allTasks.filter((t) => isInDateRange(t.created_at)), [allTasks, effectiveStart, effectiveEnd]);
+  const filteredContributions = useMemo(() => allContributions.filter((c) => isInDateRange(c.created_at)), [allContributions, effectiveStart, effectiveEnd]);
+  const filteredMetrics = useMemo(() => allMetrics.filter((m) => isInDateRange(m.created_at)), [allMetrics, effectiveStart, effectiveEnd]);
+
+  // Calculate stats from filtered data
+  const roleStats: RoleStats[] = useMemo(() => {
+    const roleCount: Record<string, number> = {};
+    allRoles.forEach((r) => {
+      roleCount[r.role] = (roleCount[r.role] || 0) + 1;
+    });
+    return Object.entries(roleCount).map(([role, count]) => ({ role, count }));
+  }, [allRoles]);
+
+  const taskStats: TaskStats[] = useMemo(() => {
+    const taskCount: Record<string, number> = {};
+    filteredTasks.forEach((t) => {
+      const status = t.status || "pending";
+      taskCount[status] = (taskCount[status] || 0) + 1;
+    });
+    return Object.entries(taskCount).map(([status, count]) => ({ status, count }));
+  }, [filteredTasks]);
+
+  const contributionStats: ContributionStats[] = useMemo(() => {
+    const contribCount: Record<string, number> = {};
+    filteredContributions.forEach((c) => {
+      const status = c.status || "pending";
+      contribCount[status] = (contribCount[status] || 0) + 1;
+    });
+    return Object.entries(contribCount).map(([status, count]) => ({ status, count }));
+  }, [filteredContributions]);
+
+  const performanceData: PerformanceData[] = useMemo(() => {
+    const perfByCategory: Record<string, { total: number; count: number }> = {};
+    filteredMetrics.forEach((m) => {
+      const catName = m.metric_categories?.name || "General";
+      if (!perfByCategory[catName]) {
+        perfByCategory[catName] = { total: 0, count: 0 };
+      }
+      perfByCategory[catName].total += m.score;
+      perfByCategory[catName].count += 1;
+    });
+    return Object.entries(perfByCategory).map(([category, data]) => ({
+      category,
+      avgScore: Math.round(data.total / data.count),
+    }));
+  }, [filteredMetrics]);
 
   const totalMembers = teamMembers.length;
   const totalTasks = taskStats.reduce((sum, t) => sum + t.count, 0);
@@ -180,6 +267,26 @@ const ReportsPage = () => {
     }
   };
 
+  const handlePresetChange = (preset: DatePreset) => {
+    setDatePreset(preset);
+    if (preset !== "custom") {
+      setStartDate(undefined);
+      setEndDate(undefined);
+    }
+  };
+
+  const getDateRangeLabel = () => {
+    if (datePreset === "all") return "All Time";
+    if (datePreset === "7d") return "Last 7 Days";
+    if (datePreset === "30d") return "Last 30 Days";
+    if (datePreset === "this_month") return "This Month";
+    if (datePreset === "last_month") return "Last Month";
+    if (datePreset === "custom" && startDate && endDate) {
+      return `${format(startDate, "MMM d")} - ${format(endDate, "MMM d, yyyy")}`;
+    }
+    return "Select Range";
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -196,6 +303,83 @@ const ReportsPage = () => {
           showNotifications
           onNotificationClick={() => setIsNotificationsOpen(true)}
         />
+
+        {/* Date Filter */}
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-card rounded-2xl p-4 shadow-soft border border-border/50 mb-6"
+        >
+          <div className="flex items-center gap-2 mb-3">
+            <CalendarDays className="w-4 h-4 text-primary" />
+            <span className="text-sm font-medium">Date Range</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {(["all", "7d", "30d", "this_month", "last_month"] as DatePreset[]).map((preset) => (
+              <Button
+                key={preset}
+                variant={datePreset === preset ? "default" : "outline"}
+                size="sm"
+                onClick={() => handlePresetChange(preset)}
+                className="text-xs"
+              >
+                {preset === "all" && "All Time"}
+                {preset === "7d" && "7 Days"}
+                {preset === "30d" && "30 Days"}
+                {preset === "this_month" && "This Month"}
+                {preset === "last_month" && "Last Month"}
+              </Button>
+            ))}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={datePreset === "custom" ? "default" : "outline"}
+                  size="sm"
+                  className="text-xs"
+                >
+                  {datePreset === "custom" && startDate && endDate
+                    ? `${format(startDate, "MMM d")} - ${format(endDate, "MMM d")}`
+                    : "Custom"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <div className="p-4 space-y-4">
+                  <div>
+                    <p className="text-sm font-medium mb-2">Start Date</p>
+                    <Calendar
+                      mode="single"
+                      selected={startDate}
+                      onSelect={(date) => {
+                        setStartDate(date);
+                        setDatePreset("custom");
+                      }}
+                      initialFocus
+                      className={cn("pointer-events-auto")}
+                    />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium mb-2">End Date</p>
+                    <Calendar
+                      mode="single"
+                      selected={endDate}
+                      onSelect={(date) => {
+                        setEndDate(date);
+                        setDatePreset("custom");
+                      }}
+                      disabled={(date) => (startDate ? date < startDate : false)}
+                      className={cn("pointer-events-auto")}
+                    />
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+          {effectiveStart && effectiveEnd && (
+            <p className="text-xs text-muted-foreground mt-2">
+              Showing data from {format(effectiveStart, "MMM d, yyyy")} to {format(effectiveEnd, "MMM d, yyyy")}
+            </p>
+          )}
+        </motion.div>
 
         {/* Summary Cards */}
         <motion.div
@@ -223,7 +407,7 @@ const ReportsPage = () => {
               <Briefcase className="w-5 h-5 text-blue-500" />
             </div>
             <p className="text-2xl font-bold">{totalTasks}</p>
-            <p className="text-sm text-muted-foreground">Total Tasks</p>
+            <p className="text-sm text-muted-foreground">Tasks</p>
           </motion.div>
 
           <motion.div
@@ -236,7 +420,7 @@ const ReportsPage = () => {
             <p className="text-2xl font-bold">
               {totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0}%
             </p>
-            <p className="text-sm text-muted-foreground">Task Completion</p>
+            <p className="text-sm text-muted-foreground">Completed</p>
           </motion.div>
 
           <motion.div
@@ -293,15 +477,19 @@ const ReportsPage = () => {
                 className="bg-card rounded-2xl p-6 shadow-soft border border-border/50"
               >
                 <h3 className="font-semibold mb-4">Task Status</h3>
-                <div className="space-y-3">
-                  {taskStats.map(({ status, count }) => (
-                    <div key={status} className="flex items-center gap-3">
-                      {getStatusIcon(status)}
-                      <span className="text-sm capitalize flex-1">{status.replace("_", " ")}</span>
-                      <span className="text-sm font-medium">{count}</span>
-                    </div>
-                  ))}
-                </div>
+                {taskStats.length > 0 ? (
+                  <div className="space-y-3">
+                    {taskStats.map(({ status, count }) => (
+                      <div key={status} className="flex items-center gap-3">
+                        {getStatusIcon(status)}
+                        <span className="text-sm capitalize flex-1">{status.replace("_", " ")}</span>
+                        <span className="text-sm font-medium">{count}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No tasks in this period</p>
+                )}
               </motion.div>
 
               <motion.div
@@ -309,15 +497,19 @@ const ReportsPage = () => {
                 className="bg-card rounded-2xl p-6 shadow-soft border border-border/50"
               >
                 <h3 className="font-semibold mb-4">Contribution Status</h3>
-                <div className="space-y-3">
-                  {contributionStats.map(({ status, count }) => (
-                    <div key={status} className="flex items-center gap-3">
-                      {getStatusIcon(status)}
-                      <span className="text-sm capitalize flex-1">{status}</span>
-                      <span className="text-sm font-medium">{count}</span>
-                    </div>
-                  ))}
-                </div>
+                {contributionStats.length > 0 ? (
+                  <div className="space-y-3">
+                    {contributionStats.map(({ status, count }) => (
+                      <div key={status} className="flex items-center gap-3">
+                        {getStatusIcon(status)}
+                        <span className="text-sm capitalize flex-1">{status}</span>
+                        <span className="text-sm font-medium">{count}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No contributions in this period</p>
+                )}
               </motion.div>
             </div>
           </TabsContent>
@@ -424,7 +616,7 @@ const ReportsPage = () => {
             ) : (
               <div className="text-center py-12 text-muted-foreground">
                 <BarChart3 className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>No performance data available yet</p>
+                <p>No performance data available for this period</p>
               </div>
             )}
           </TabsContent>
