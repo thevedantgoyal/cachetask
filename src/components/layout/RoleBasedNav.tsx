@@ -1,4 +1,4 @@
-import { Home, ListTodo, History, BarChart3, User, Shield, Users, TrendingUp, Building2, LucideIcon } from "lucide-react";
+import { Home, ListTodo, History, BarChart3, User, Shield, Users, TrendingUp, Building2, CalendarCheck, LucideIcon } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -13,6 +13,7 @@ interface NavItem {
 
 const allNavItems: NavItem[] = [
   { icon: Home, label: "Home", path: "/" },
+  { icon: CalendarCheck, label: "Attendance", path: "/attendance" },
   { icon: ListTodo, label: "Tasks", path: "/tasks" },
   { icon: TrendingUp, label: "Skills", path: "/skills" },
   { icon: History, label: "History", path: "/history" },
