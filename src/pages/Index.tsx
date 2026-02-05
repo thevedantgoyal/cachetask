@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Settings, Plus, CheckCircle, Clock, TrendingUp, ListTodo, Users } from "lucide-react";
+import { Settings, Plus, CheckCircle, Clock, TrendingUp, ListTodo, Users, BarChart3 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -73,6 +73,13 @@ const Index = () => {
         <header className="flex items-center justify-between py-2">
           <h2 className="text-lg font-semibold">Home</h2>
           <div className="flex items-center gap-1">
+            <Link
+              to="/performance"
+              className="p-2 rounded-full hover:bg-muted transition-colors"
+              title="Performance Stats"
+            >
+              <BarChart3 className="w-5 h-5 text-muted-foreground" />
+            </Link>
             <NotificationBell onClick={() => setIsNotificationsOpen(true)} />
             <Link
               to="/profile"

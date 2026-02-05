@@ -17,7 +17,6 @@ const allNavItems: NavItem[] = [
   { icon: ListTodo, label: "Tasks", path: "/tasks" },
   { icon: TrendingUp, label: "Skills", path: "/skills" },
   { icon: History, label: "History", path: "/history" },
-  { icon: BarChart3, label: "Stats", path: "/performance" },
   { icon: Users, label: "Team", path: "/manager", roles: ["manager", "team_lead", "hr", "admin"] },
   { icon: Building2, label: "Reports", path: "/reports", roles: ["organization"] },
   { icon: Shield, label: "Admin", path: "/admin", roles: ["admin"] },
