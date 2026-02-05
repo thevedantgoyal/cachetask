@@ -26,7 +26,7 @@ export interface LocationData {
 const OFFICE_LOCATION = {
   latitude: 28.49726565449399,
   longitude: 77.1633343946611,
-  radius: 100, // meters
+  radius: 70, // meters
 };
 
 // Mock attendance history
