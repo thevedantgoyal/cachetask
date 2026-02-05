@@ -22,10 +22,10 @@ export interface LocationData {
   isWithinRadius: boolean;
 }
 
-// Office location: F5W7+R8 New Delhi, Delhi
+// Office location coordinates
 const OFFICE_LOCATION = {
-  latitude: 28.6448,
-  longitude: 77.2167,
+  latitude: 28.49726565449399,
+  longitude: 77.1633343946611,
   radius: 100, // meters
 };
 
