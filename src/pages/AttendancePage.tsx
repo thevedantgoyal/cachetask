@@ -9,6 +9,7 @@ import { AttendanceDisclaimer } from "@/components/attendance/AttendanceDisclaim
 import { FaceVerification } from "@/components/attendance/FaceVerification";
 import { LocationVerification } from "@/components/attendance/LocationVerification";
 import { AttendanceConfirmation } from "@/components/attendance/AttendanceConfirmation";
+import { CheckOutConfirmation } from "@/components/attendance/CheckOutConfirmation";
 import { AttendanceHistory } from "@/components/attendance/AttendanceHistory";
 import { TodayStatus } from "@/components/attendance/TodayStatus";
 
@@ -16,29 +17,42 @@ const AttendancePage = () => {
   const [activeTab, setActiveTab] = useState("today");
   const {
     currentStep,
+    activeFlowType,
     faceStatus,
     locationStatus,
     locationData,
     todayMarked,
+    todayCheckedOut,
     attendanceHistory,
     errorMessage,
     officeRadius,
+    formattedWorkingDuration,
     startAttendanceFlow,
+    startCheckOutFlow,
     simulateFaceVerification,
     retryFaceVerification,
     verifyLocation,
     confirmAttendance,
+    confirmCheckOut,
     resetFlow,
     getTodayAttendance,
   } = useAttendance();
 
   const todayRecord = getTodayAttendance();
-  const showVerificationFlow = currentStep !== "disclaimer" && !todayMarked;
+  const showVerificationFlow = currentStep !== "disclaimer" && !todayMarked && activeFlowType === "checkin";
+  const showCheckOutFlow = currentStep !== "disclaimer" && activeFlowType === "checkout" && !todayCheckedOut;
 
   const handleConfirmAttendance = () => {
     confirmAttendance();
     resetFlow();
   };
+
+  const handleConfirmCheckOut = () => {
+    confirmCheckOut();
+    resetFlow();
+  };
+
+  const isInVerificationFlow = showVerificationFlow || showCheckOutFlow;
 
   return (
     <div className="min-h-screen bg-background">
@@ -64,7 +78,7 @@ const AttendancePage = () => {
           animate={{ opacity: 1, y: 0 }}
           className="mt-4"
         >
-          {!showVerificationFlow ? (
+          {!isInVerificationFlow ? (
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
               <TabsList className="w-full grid grid-cols-2">
                 <TabsTrigger value="today">Today</TabsTrigger>
@@ -75,6 +89,9 @@ const AttendancePage = () => {
                 <TodayStatus
                   record={todayRecord}
                   onMarkAttendance={startAttendanceFlow}
+                  onMarkCheckOut={startCheckOutFlow}
+                  workingDuration={formattedWorkingDuration()}
+                  isCheckedOut={todayCheckedOut}
                 />
 
                 {currentStep === "disclaimer" && !todayMarked && !todayRecord && (
@@ -112,11 +129,20 @@ const AttendancePage = () => {
                 />
               )}
 
-              {currentStep === "confirmation" && (
+              {currentStep === "confirmation" && activeFlowType === "checkin" && (
                 <AttendanceConfirmation
                   key="confirmation"
                   locationData={locationData}
                   onConfirm={handleConfirmAttendance}
+                />
+              )}
+
+              {currentStep === "confirmation" && activeFlowType === "checkout" && (
+                <CheckOutConfirmation
+                  key="checkout-confirmation"
+                  locationData={locationData}
+                  todayRecord={todayRecord}
+                  onConfirm={handleConfirmCheckOut}
                 />
               )}
             </AnimatePresence>

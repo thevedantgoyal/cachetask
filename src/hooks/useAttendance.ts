@@ -1,17 +1,23 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 
 export type AttendanceStep = "disclaimer" | "face" | "location" | "confirmation";
 export type VerificationStatus = "pending" | "verifying" | "success" | "failed";
+export type FlowType = "checkin" | "checkout";
 
 export interface AttendanceRecord {
   id: string;
   date: string;
   status: "present" | "absent" | "pending";
   checkInTime: string | null;
+  checkOutTime: string | null;
   faceVerified: boolean;
   locationVerified: boolean;
+  checkOutFaceVerified: boolean;
+  checkOutLocationVerified: boolean;
   distance: number | null;
+  checkOutDistance: number | null;
   verificationMethod: string;
+  totalHoursWorked: string | null;
 }
 
 export interface LocationData {
@@ -29,6 +35,16 @@ const OFFICE_LOCATION = {
   radius: 70, // meters
 };
 
+function calculateDuration(checkIn: string, checkOut: string): string {
+  const [h1, m1, s1] = checkIn.split(":").map(Number);
+  const [h2, m2, s2] = checkOut.split(":").map(Number);
+  let totalSeconds = (h2 * 3600 + m2 * 60 + s2) - (h1 * 3600 + m1 * 60 + s1);
+  if (totalSeconds < 0) totalSeconds += 86400;
+  const hours = Math.floor(totalSeconds / 3600);
+  const mins = Math.floor((totalSeconds % 3600) / 60);
+  return `${hours}h ${mins}m`;
+}
+
 // Mock attendance history
 const MOCK_ATTENDANCE_HISTORY: AttendanceRecord[] = [
   {
@@ -36,50 +52,75 @@ const MOCK_ATTENDANCE_HISTORY: AttendanceRecord[] = [
     date: "2026-02-04",
     status: "present",
     checkInTime: "09:15:32",
+    checkOutTime: "18:02:10",
     faceVerified: true,
     locationVerified: true,
+    checkOutFaceVerified: true,
+    checkOutLocationVerified: true,
     distance: 45,
+    checkOutDistance: 38,
     verificationMethod: "Face + Geo-fence",
+    totalHoursWorked: "8h 46m",
   },
   {
     id: "2",
     date: "2026-02-03",
     status: "present",
     checkInTime: "09:02:18",
+    checkOutTime: "17:45:55",
     faceVerified: true,
     locationVerified: true,
+    checkOutFaceVerified: true,
+    checkOutLocationVerified: true,
     distance: 23,
+    checkOutDistance: 19,
     verificationMethod: "Face + Geo-fence",
+    totalHoursWorked: "8h 43m",
   },
   {
     id: "3",
     date: "2026-02-02",
     status: "absent",
     checkInTime: null,
+    checkOutTime: null,
     faceVerified: false,
     locationVerified: false,
+    checkOutFaceVerified: false,
+    checkOutLocationVerified: false,
     distance: null,
+    checkOutDistance: null,
     verificationMethod: "Not attempted",
+    totalHoursWorked: null,
   },
   {
     id: "4",
     date: "2026-02-01",
     status: "present",
     checkInTime: "08:58:45",
+    checkOutTime: "18:30:00",
     faceVerified: true,
     locationVerified: true,
+    checkOutFaceVerified: true,
+    checkOutLocationVerified: true,
     distance: 67,
+    checkOutDistance: 52,
     verificationMethod: "Face + Geo-fence",
+    totalHoursWorked: "9h 31m",
   },
   {
     id: "5",
     date: "2026-01-31",
     status: "present",
     checkInTime: "09:30:12",
+    checkOutTime: null,
     faceVerified: true,
     locationVerified: true,
+    checkOutFaceVerified: false,
+    checkOutLocationVerified: false,
     distance: 12,
+    checkOutDistance: null,
     verificationMethod: "Face + Geo-fence",
+    totalHoursWorked: null,
   },
 ];
 
@@ -89,7 +130,7 @@ function calculateDistance(
   lat2: number,
   lon2: number
 ): number {
-  const R = 6371e3; // Earth's radius in meters
+  const R = 6371e3;
   const φ1 = (lat1 * Math.PI) / 180;
   const φ2 = (lat2 * Math.PI) / 180;
   const Δφ = ((lat2 - lat1) * Math.PI) / 180;
@@ -105,18 +146,63 @@ function calculateDistance(
 
 export const useAttendance = () => {
   const [currentStep, setCurrentStep] = useState<AttendanceStep>("disclaimer");
+  const [activeFlowType, setActiveFlowType] = useState<FlowType>("checkin");
   const [faceStatus, setFaceStatus] = useState<VerificationStatus>("pending");
   const [locationStatus, setLocationStatus] = useState<VerificationStatus>("pending");
   const [locationData, setLocationData] = useState<LocationData | null>(null);
   const [todayMarked, setTodayMarked] = useState(false);
+  const [todayCheckedOut, setTodayCheckedOut] = useState(false);
   const [attendanceHistory, setAttendanceHistory] = useState<AttendanceRecord[]>(
     MOCK_ATTENDANCE_HISTORY
   );
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [workingDurationSeconds, setWorkingDurationSeconds] = useState(0);
 
   const officeRadius = OFFICE_LOCATION.radius;
 
+  const getTodayAttendance = useCallback((): AttendanceRecord | null => {
+    const today = new Date().toISOString().split("T")[0];
+    return attendanceHistory.find((record) => record.date === today) || null;
+  }, [attendanceHistory]);
+
+  // Live working duration counter
+  useEffect(() => {
+    const todayRecord = getTodayAttendance();
+    if (!todayRecord?.checkInTime || todayRecord.checkOutTime) return;
+
+    const [h, m, s] = todayRecord.checkInTime.split(":").map(Number);
+    const checkInDate = new Date();
+    checkInDate.setHours(h, m, s, 0);
+
+    const updateDuration = () => {
+      const now = new Date();
+      const diff = Math.floor((now.getTime() - checkInDate.getTime()) / 1000);
+      setWorkingDurationSeconds(Math.max(0, diff));
+    };
+
+    updateDuration();
+    const interval = setInterval(updateDuration, 1000);
+    return () => clearInterval(interval);
+  }, [getTodayAttendance]);
+
+  const formattedWorkingDuration = useCallback(() => {
+    const hours = Math.floor(workingDurationSeconds / 3600);
+    const mins = Math.floor((workingDurationSeconds % 3600) / 60);
+    const secs = workingDurationSeconds % 60;
+    return `${hours.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  }, [workingDurationSeconds]);
+
   const startAttendanceFlow = useCallback(() => {
+    setActiveFlowType("checkin");
+    setCurrentStep("face");
+    setFaceStatus("pending");
+    setLocationStatus("pending");
+    setLocationData(null);
+    setErrorMessage(null);
+  }, []);
+
+  const startCheckOutFlow = useCallback(() => {
+    setActiveFlowType("checkout");
     setCurrentStep("face");
     setFaceStatus("pending");
     setLocationStatus("pending");
@@ -126,13 +212,9 @@ export const useAttendance = () => {
 
   const simulateFaceVerification = useCallback(async (): Promise<boolean> => {
     setFaceStatus("verifying");
-    
-    // Simulate verification delay
     await new Promise((resolve) => setTimeout(resolve, 2500));
-    
-    // 85% success rate for demo
     const success = Math.random() > 0.15;
-    
+
     if (success) {
       setFaceStatus("success");
       setCurrentStep("location");
@@ -180,7 +262,6 @@ export const useAttendance = () => {
             isWithinRadius,
           });
 
-          // Simulate processing delay
           setTimeout(() => {
             if (isWithinRadius) {
               setLocationStatus("success");
@@ -228,14 +309,43 @@ export const useAttendance = () => {
       date: now.toISOString().split("T")[0],
       status: "present",
       checkInTime: now.toTimeString().split(" ")[0],
+      checkOutTime: null,
       faceVerified: true,
       locationVerified: true,
+      checkOutFaceVerified: false,
+      checkOutLocationVerified: false,
       distance: locationData?.distance || 0,
+      checkOutDistance: null,
       verificationMethod: "Face + Geo-fence",
+      totalHoursWorked: null,
     };
 
     setAttendanceHistory((prev) => [newRecord, ...prev]);
     setTodayMarked(true);
+  }, [locationData]);
+
+  const confirmCheckOut = useCallback(() => {
+    const now = new Date();
+    const checkOutTime = now.toTimeString().split(" ")[0];
+
+    setAttendanceHistory((prev) =>
+      prev.map((record) => {
+        const today = new Date().toISOString().split("T")[0];
+        if (record.date === today && record.checkInTime && !record.checkOutTime) {
+          const duration = calculateDuration(record.checkInTime, checkOutTime);
+          return {
+            ...record,
+            checkOutTime,
+            checkOutFaceVerified: true,
+            checkOutLocationVerified: true,
+            checkOutDistance: locationData?.distance || 0,
+            totalHoursWorked: duration,
+          };
+        }
+        return record;
+      })
+    );
+    setTodayCheckedOut(true);
   }, [locationData]);
 
   const resetFlow = useCallback(() => {
@@ -246,25 +356,25 @@ export const useAttendance = () => {
     setErrorMessage(null);
   }, []);
 
-  const getTodayAttendance = useCallback((): AttendanceRecord | null => {
-    const today = new Date().toISOString().split("T")[0];
-    return attendanceHistory.find((record) => record.date === today) || null;
-  }, [attendanceHistory]);
-
   return {
     currentStep,
+    activeFlowType,
     faceStatus,
     locationStatus,
     locationData,
     todayMarked,
+    todayCheckedOut,
     attendanceHistory,
     errorMessage,
     officeRadius,
+    formattedWorkingDuration,
     startAttendanceFlow,
+    startCheckOutFlow,
     simulateFaceVerification,
     retryFaceVerification,
     verifyLocation,
     confirmAttendance,
+    confirmCheckOut,
     resetFlow,
     getTodayAttendance,
   };
