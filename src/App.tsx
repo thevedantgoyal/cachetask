@@ -1,3 +1,4 @@
+import { useState, useCallback } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -7,6 +8,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AdminRoute } from "@/components/auth/AdminRoute";
 import { OrganizationRoute } from "@/components/auth/OrganizationRoute";
+import SplashScreen from "@/components/SplashScreen";
 import Index from "./pages/Index";
 import TasksPage from "./pages/TasksPage";
 import HistoryPage from "./pages/HistoryPage";
@@ -25,35 +27,41 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-          <Routes>
-            <Route path="/auth" element={<AuthPage />} />
-            <Route path="/install" element={<InstallPage />} />
-            <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-            <Route path="/tasks" element={<ProtectedRoute><TasksPage /></ProtectedRoute>} />
-            <Route path="/history" element={<ProtectedRoute><HistoryPage /></ProtectedRoute>} />
-            <Route path="/performance" element={<ProtectedRoute><PerformancePage /></ProtectedRoute>} />
-            <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
-            <Route path="/skills" element={<ProtectedRoute><SkillsPage /></ProtectedRoute>} />
-            <Route path="/attendance" element={<ProtectedRoute><AttendancePage /></ProtectedRoute>} />
-            <Route path="/leave" element={<ProtectedRoute><LeavePage /></ProtectedRoute>} />
-            <Route path="/timesheet" element={<ProtectedRoute><TimesheetPage /></ProtectedRoute>} />
-            <Route path="/manager" element={<ProtectedRoute><ManagerDashboard /></ProtectedRoute>} />
-            <Route path="/reports" element={<OrganizationRoute><ReportsPage /></OrganizationRoute>} />
-            <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </AuthProvider>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  const [showSplash, setShowSplash] = useState(true);
+  const handleSplashComplete = useCallback(() => setShowSplash(false), []);
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        {showSplash && <SplashScreen onComplete={handleSplashComplete} />}
+        <BrowserRouter>
+          <AuthProvider>
+            <Routes>
+              <Route path="/auth" element={<AuthPage />} />
+              <Route path="/install" element={<InstallPage />} />
+              <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+              <Route path="/tasks" element={<ProtectedRoute><TasksPage /></ProtectedRoute>} />
+              <Route path="/history" element={<ProtectedRoute><HistoryPage /></ProtectedRoute>} />
+              <Route path="/performance" element={<ProtectedRoute><PerformancePage /></ProtectedRoute>} />
+              <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+              <Route path="/skills" element={<ProtectedRoute><SkillsPage /></ProtectedRoute>} />
+              <Route path="/attendance" element={<ProtectedRoute><AttendancePage /></ProtectedRoute>} />
+              <Route path="/leave" element={<ProtectedRoute><LeavePage /></ProtectedRoute>} />
+              <Route path="/timesheet" element={<ProtectedRoute><TimesheetPage /></ProtectedRoute>} />
+              <Route path="/manager" element={<ProtectedRoute><ManagerDashboard /></ProtectedRoute>} />
+              <Route path="/reports" element={<OrganizationRoute><ReportsPage /></OrganizationRoute>} />
+              <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </AuthProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
