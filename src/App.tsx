@@ -19,6 +19,8 @@ import SkillsPage from "./pages/SkillsPage";
 import ReportsPage from "./pages/ReportsPage";
 import InstallPage from "./pages/InstallPage";
 import AttendancePage from "./pages/AttendancePage";
+import LeavePage from "./pages/LeavePage";
+import TimesheetPage from "./pages/TimesheetPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -40,6 +42,8 @@ const App = () => (
             <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
             <Route path="/skills" element={<ProtectedRoute><SkillsPage /></ProtectedRoute>} />
             <Route path="/attendance" element={<ProtectedRoute><AttendancePage /></ProtectedRoute>} />
+            <Route path="/leave" element={<ProtectedRoute><LeavePage /></ProtectedRoute>} />
+            <Route path="/timesheet" element={<ProtectedRoute><TimesheetPage /></ProtectedRoute>} />
             <Route path="/manager" element={<ProtectedRoute><ManagerDashboard /></ProtectedRoute>} />
             <Route path="/reports" element={<OrganizationRoute><ReportsPage /></OrganizationRoute>} />
             <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
