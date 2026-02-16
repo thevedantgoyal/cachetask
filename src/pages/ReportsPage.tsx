@@ -14,9 +14,6 @@ import {
 } from "lucide-react";
 import { format, subDays, startOfMonth, endOfMonth, subMonths, isWithinInterval, parseISO } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
-import { RoleBasedNav } from "@/components/layout/RoleBasedNav";
-import { PageHeader } from "@/components/layout/PageHeader";
-import { NotificationPanel } from "@/components/notifications/NotificationPanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -85,7 +82,6 @@ const itemVariants = {
 type DatePreset = "all" | "7d" | "30d" | "this_month" | "last_month" | "custom";
 
 const ReportsPage = () => {
-  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [allTasks, setAllTasks] = useState<Task[]>([]);
@@ -296,13 +292,7 @@ const ReportsPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24">
-      <div className="max-w-4xl mx-auto px-4 py-6">
-        <PageHeader
-          title="Organization Reports"
-          showNotifications
-          onNotificationClick={() => setIsNotificationsOpen(true)}
-        />
+    <>
 
         {/* Date Filter */}
         <motion.div
@@ -621,11 +611,7 @@ const ReportsPage = () => {
             )}
           </TabsContent>
         </Tabs>
-      </div>
-
-      <RoleBasedNav />
-      <NotificationPanel isOpen={isNotificationsOpen} onClose={() => setIsNotificationsOpen(false)} />
-    </div>
+    </>
   );
 };
 
