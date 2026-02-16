@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion } from "framer-motion";
 import {
-  ChevronLeft,
   UserPlus,
   Users,
   Upload,
@@ -27,12 +26,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { z } from "zod";
-import { RoleBasedNav } from "@/components/layout/RoleBasedNav";
 import { TeamManagement } from "@/components/admin/TeamManagement";
 import { EmailSettings } from "@/components/admin/EmailSettings";
 import { NotificationBroadcast } from "@/components/admin/NotificationBroadcast";
-import { NotificationBell } from "@/components/notifications/NotificationBell";
-import { NotificationPanel } from "@/components/notifications/NotificationPanel";
 import { createNotification } from "@/hooks/useNotifications";
 import { sendRoleChangedEmail } from "@/hooks/useEmailNotifications";
 
@@ -91,7 +87,7 @@ const AdminDashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterRole, setFilterRole] = useState<string>("");
   const [filterDepartment, setFilterDepartment] = useState<string>("");
-  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  
 
   // Stats
   const [stats, setStats] = useState<Stats>({
@@ -422,19 +418,7 @@ bob@company.com,Bob Wilson,Team Lead,Design,Remote,team_lead`;
   ];
 
   return (
-    <div className="min-h-screen bg-background pb-24">
-      <div className="max-w-6xl mx-auto px-4 py-6">
-        {/* Header */}
-        <header className="flex items-center justify-between py-4 mb-6">
-          <button onClick={() => navigate("/")} className="p-2 -ml-2 rounded-full hover:bg-muted transition-colors">
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          <h1 className="text-xl font-display font-bold flex items-center gap-2">
-            <Shield className="w-5 h-5 text-primary" />
-            Admin Control Panel
-          </h1>
-          <NotificationBell onClick={() => setIsNotificationsOpen(true)} />
-        </header>
+    <>
 
         {/* Tabs */}
         <div className="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
@@ -1084,16 +1068,8 @@ bob@company.com, Bob Wilson, Designer, Design, Remote, team_lead`}
             </motion.div>
           </div>
         )}
-      </div>
-
-      <RoleBasedNav />
-      
-      <NotificationPanel
-        isOpen={isNotificationsOpen}
-        onClose={() => setIsNotificationsOpen(false)}
-      />
-    </div>
-  );
-};
+      </>
+    );
+  };
 
 export default AdminDashboard;

@@ -8,6 +8,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AdminRoute } from "@/components/auth/AdminRoute";
 import { OrganizationRoute } from "@/components/auth/OrganizationRoute";
+import { AppLayout } from "@/components/layout/AppLayout";
 import SplashScreen from "@/components/SplashScreen";
 import Index from "./pages/Index";
 import TasksPage from "./pages/TasksPage";
@@ -27,6 +28,10 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
+const ProtectedWithLayout = ({ children }: { children: React.ReactNode }) => (
+  <ProtectedRoute><AppLayout>{children}</AppLayout></ProtectedRoute>
+);
+
 const App = () => {
   const [showSplash, setShowSplash] = useState(true);
   const handleSplashComplete = useCallback(() => setShowSplash(false), []);
@@ -42,18 +47,18 @@ const App = () => {
             <Routes>
               <Route path="/auth" element={<AuthPage />} />
               <Route path="/install" element={<InstallPage />} />
-              <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-              <Route path="/tasks" element={<ProtectedRoute><TasksPage /></ProtectedRoute>} />
-              <Route path="/history" element={<ProtectedRoute><HistoryPage /></ProtectedRoute>} />
-              <Route path="/performance" element={<ProtectedRoute><PerformancePage /></ProtectedRoute>} />
-              <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
-              <Route path="/skills" element={<ProtectedRoute><SkillsPage /></ProtectedRoute>} />
-              <Route path="/attendance" element={<ProtectedRoute><AttendancePage /></ProtectedRoute>} />
-              <Route path="/leave" element={<ProtectedRoute><LeavePage /></ProtectedRoute>} />
-              <Route path="/timesheet" element={<ProtectedRoute><TimesheetPage /></ProtectedRoute>} />
-              <Route path="/manager" element={<ProtectedRoute><ManagerDashboard /></ProtectedRoute>} />
-              <Route path="/reports" element={<OrganizationRoute><ReportsPage /></OrganizationRoute>} />
-              <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+              <Route path="/" element={<ProtectedWithLayout><Index /></ProtectedWithLayout>} />
+              <Route path="/tasks" element={<ProtectedWithLayout><TasksPage /></ProtectedWithLayout>} />
+              <Route path="/history" element={<ProtectedWithLayout><HistoryPage /></ProtectedWithLayout>} />
+              <Route path="/performance" element={<ProtectedWithLayout><PerformancePage /></ProtectedWithLayout>} />
+              <Route path="/profile" element={<ProtectedWithLayout><ProfilePage /></ProtectedWithLayout>} />
+              <Route path="/skills" element={<ProtectedWithLayout><SkillsPage /></ProtectedWithLayout>} />
+              <Route path="/attendance" element={<ProtectedWithLayout><AttendancePage /></ProtectedWithLayout>} />
+              <Route path="/leave" element={<ProtectedWithLayout><LeavePage /></ProtectedWithLayout>} />
+              <Route path="/timesheet" element={<ProtectedWithLayout><TimesheetPage /></ProtectedWithLayout>} />
+              <Route path="/manager" element={<ProtectedWithLayout><ManagerDashboard /></ProtectedWithLayout>} />
+              <Route path="/reports" element={<OrganizationRoute><AppLayout><ReportsPage /></AppLayout></OrganizationRoute>} />
+              <Route path="/admin" element={<AdminRoute><AppLayout><AdminDashboard /></AppLayout></AdminRoute>} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
