@@ -14,6 +14,41 @@ export type Database = {
   }
   public: {
     Tables: {
+      booking_audit_log: {
+        Row: {
+          action: string
+          booking_id: string
+          created_at: string
+          details: Json | null
+          id: string
+          performed_by: string
+        }
+        Insert: {
+          action: string
+          booking_id: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          performed_by: string
+        }
+        Update: {
+          action?: string
+          booking_id?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          performed_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_audit_log_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "room_bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contributions: {
         Row: {
           created_at: string
@@ -76,6 +111,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      meeting_rooms: {
+        Row: {
+          capacity: number
+          created_at: string
+          created_by: string
+          floor: string | null
+          has_projector: boolean
+          has_video_conferencing: boolean
+          has_whiteboard: boolean
+          id: string
+          location: string
+          name: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          capacity?: number
+          created_at?: string
+          created_by: string
+          floor?: string | null
+          has_projector?: boolean
+          has_video_conferencing?: boolean
+          has_whiteboard?: boolean
+          id?: string
+          location: string
+          name: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          capacity?: number
+          created_at?: string
+          created_by?: string
+          floor?: string | null
+          has_projector?: boolean
+          has_video_conferencing?: boolean
+          has_whiteboard?: boolean
+          id?: string
+          location?: string
+          name?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       metric_categories: {
         Row: {
@@ -331,6 +411,78 @@ export type Database = {
         }
         Relationships: []
       }
+      room_bookings: {
+        Row: {
+          booked_by: string
+          booking_date: string
+          cancellation_reason: string | null
+          created_at: string
+          end_time: string
+          id: string
+          meeting_type: string
+          participants: string[] | null
+          priority: string
+          project_id: string | null
+          purpose: string | null
+          room_id: string
+          start_time: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          booked_by: string
+          booking_date: string
+          cancellation_reason?: string | null
+          created_at?: string
+          end_time: string
+          id?: string
+          meeting_type?: string
+          participants?: string[] | null
+          priority?: string
+          project_id?: string | null
+          purpose?: string | null
+          room_id: string
+          start_time: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          booked_by?: string
+          booking_date?: string
+          cancellation_reason?: string | null
+          created_at?: string
+          end_time?: string
+          id?: string
+          meeting_type?: string
+          participants?: string[] | null
+          priority?: string
+          project_id?: string | null
+          purpose?: string | null
+          room_id?: string
+          start_time?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "room_bookings_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "room_bookings_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "meeting_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       scheduled_notifications: {
         Row: {
           created_at: string
@@ -534,6 +686,23 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_booking_conflict: {
+        Args: {
+          _booking_date: string
+          _end_time: string
+          _exclude_id?: string
+          _room_id: string
+          _start_time: string
+        }
+        Returns: {
+          booked_by: string
+          end_time: string
+          id: string
+          priority: string
+          start_time: string
+          title: string
+        }[]
+      }
       create_notification: {
         Args: {
           _message: string
