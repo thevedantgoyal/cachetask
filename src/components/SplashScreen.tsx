@@ -51,9 +51,7 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
           className="relative mb-6"
         >
           <div className="w-20 h-20 rounded-2xl bg-primary-foreground/15 backdrop-blur-sm border border-primary-foreground/20 flex items-center justify-center shadow-2xl">
-            <span className="text-4xl font-display font-bold text-primary-foreground tracking-tight">
-              C
-            </span>
+            <span className="text-4xl font-display font-bold text-primary-foreground tracking-tight">C</span>
           </div>
         </motion.div>
 
@@ -64,7 +62,7 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
           transition={{ duration: 0.6, ease: "easeOut", delay: 0.4 }}
           className="text-3xl font-display font-bold text-primary-foreground tracking-wide mb-2"
         >
-          CacheTask
+          Connect Plus
         </motion.h1>
 
         {/* Tagline */}
