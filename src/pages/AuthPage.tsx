@@ -18,10 +18,12 @@ const signupSchema = loginSchema.extend({
 
 const AuthPage = () => {
   const navigate = useNavigate();
-  const { user, signIn, signUp, loading } = useAuth();
+  const { user, signIn, signUp, resetPassword, loading } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
   
   const [formData, setFormData] = useState({
     email: "",
@@ -212,6 +214,15 @@ const AuthPage = () => {
             {errors.password && (
               <p className="text-destructive text-sm mt-1">{errors.password}</p>
             )}
+            {isLogin && (
+              <button
+                type="button"
+                onClick={() => setIsForgotPassword(true)}
+                className="text-sm text-primary hover:underline mt-1"
+              >
+                Forgot Password?
+              </button>
+            )}
           </div>
 
           <div className="pt-4">
@@ -224,6 +235,61 @@ const AuthPage = () => {
             </Button>
           </div>
         </motion.form>
+
+        {/* Forgot Password Modal */}
+        {isForgotPassword && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4"
+            onClick={() => setIsForgotPassword(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95 }}
+              animate={{ scale: 1 }}
+              className="bg-background rounded-2xl p-6 max-w-md w-full space-y-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-semibold">Reset Password</h3>
+              <p className="text-sm text-muted-foreground">Enter your email and we'll send you a link to reset your password.</p>
+              <div className="relative">
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                <input
+                  type="email"
+                  placeholder="Email"
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                  className="w-full pl-12 pr-4 py-4 rounded-xl border border-border bg-muted/50 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+              <div className="flex gap-3">
+                <Button variant="outline" className="flex-1" onClick={() => setIsForgotPassword(false)}>Cancel</Button>
+                <Button
+                  className="flex-1"
+                  disabled={isSubmitting}
+                  onClick={async () => {
+                    if (!resetEmail) {
+                      toast.error("Please enter your email");
+                      return;
+                    }
+                    setIsSubmitting(true);
+                    const { error } = await resetPassword(resetEmail);
+                    setIsSubmitting(false);
+                    if (error) {
+                      toast.error(error.message);
+                    } else {
+                      toast.success("Password reset link sent! Check your email.");
+                      setIsForgotPassword(false);
+                      setResetEmail("");
+                    }
+                  }}
+                >
+                  {isSubmitting ? "Sending…" : "Send Link"}
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
 
         {/* Toggle */}
         <motion.div
