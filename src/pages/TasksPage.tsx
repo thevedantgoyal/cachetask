@@ -1,13 +1,16 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Loader2, ClipboardList, LayoutList, Columns3 } from "lucide-react";
+import { Loader2, ClipboardList, LayoutList, Columns3, GanttChart } from "lucide-react";
 import { TaskCard } from "@/components/cards/TaskCard";
 import { useTasks, formatDueLabel } from "@/hooks/useTasks";
 import { TaskDetailDrawer, TaskDetailData } from "@/components/tasks/TaskDetailDrawer";
 import { KanbanBoard } from "@/components/kanban/KanbanBoard";
 import { KanbanCardData } from "@/components/kanban/KanbanCard";
+import { AdvancedFilters, TaskFilters, defaultFilters } from "@/components/tasks/AdvancedFilters";
+import { GanttTimeline } from "@/components/tasks/GanttTimeline";
 import { useUpdateTaskStatus } from "@/hooks/useTaskManagement";
 import { useInsertActivityLog } from "@/hooks/useTaskActivityLogs";
+import { useTaskDependencies } from "@/hooks/useTaskDependencies";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -21,29 +24,11 @@ const itemVariants = {
   visible: { opacity: 1, y: 0 },
 };
 
-const statusFilters = [
-  { value: "", label: "All" },
-  { value: "pending", label: "Pending" },
-  { value: "in_progress", label: "In Progress" },
-  { value: "review", label: "In Review" },
-  { value: "blocked", label: "Blocked" },
-  { value: "completed", label: "Completed" },
-];
-
-const priorityFilters = [
-  { value: "", label: "All" },
-  { value: "urgent", label: "Urgent" },
-  { value: "high", label: "High" },
-  { value: "medium", label: "Medium" },
-  { value: "low", label: "Low" },
-];
-
-type ViewMode = "list" | "kanban";
+type ViewMode = "list" | "kanban" | "gantt";
 
 const TasksPage = () => {
   const { data: tasks, isLoading, error } = useTasks();
-  const [filterStatus, setFilterStatus] = useState<string>("");
-  const [filterPriority, setFilterPriority] = useState<string>("");
+  const [filters, setFilters] = useState<TaskFilters>(defaultFilters);
   const [selectedTask, setSelectedTask] = useState<TaskDetailData | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [blockedReason, setBlockedReason] = useState("");
@@ -53,11 +38,21 @@ const TasksPage = () => {
   const updateStatus = useUpdateTaskStatus();
   const insertLog = useInsertActivityLog();
 
-  const filteredTasks = tasks?.filter((t) => {
-    if (filterStatus && t.status !== filterStatus) return false;
-    if (filterPriority && t.priority !== filterPriority) return false;
-    return true;
-  });
+  const filteredTasks = useMemo(() => {
+    return tasks?.filter((t) => {
+      if (filters.status && t.status !== filters.status) return false;
+      if (filters.priority && t.priority !== filters.priority) return false;
+      if (filters.search) {
+        const q = filters.search.toLowerCase();
+        if (!t.title.toLowerCase().includes(q) && !(t.description || "").toLowerCase().includes(q)) return false;
+      }
+      if (filters.dateRange.from && t.due_date && t.due_date < filters.dateRange.from) return false;
+      if (filters.dateRange.to && t.due_date && t.due_date > filters.dateRange.to) return false;
+      return true;
+    });
+  }, [tasks, filters]);
+
+  const allTasksList = useMemo(() => (tasks || []).map(t => ({ id: t.id, title: t.title })), [tasks]);
 
   const handleTaskClick = (task: typeof tasks extends (infer T)[] | undefined ? T : never) => {
     setSelectedTask({
@@ -91,12 +86,16 @@ const TasksPage = () => {
     setDrawerOpen(true);
   };
 
+  const handleGanttTaskClick = (taskId: string) => {
+    const task = tasks?.find(t => t.id === taskId);
+    if (task) handleTaskClick(task);
+  };
+
   const handleStatusUpdate = async (taskId: string, oldStatus: string | null, newStatus: string) => {
     if (newStatus === "blocked") {
       setShowBlockedPrompt(taskId);
       return;
     }
-
     try {
       await updateStatus.mutateAsync({ taskId, status: newStatus });
       await insertLog.mutateAsync({
@@ -116,7 +115,6 @@ const TasksPage = () => {
       toast.error("Please provide a reason for blocking");
       return;
     }
-
     try {
       const task = tasks?.find((t) => t.id === taskId);
       await updateStatus.mutateAsync({ taskId, status: "blocked", blockedReason: blockedReason.trim() });
@@ -134,7 +132,6 @@ const TasksPage = () => {
     }
   };
 
-  // Convert for Kanban
   const kanbanTasks: KanbanCardData[] = (filteredTasks || []).map((t) => ({
     id: t.id,
     title: t.title,
@@ -148,10 +145,25 @@ const TasksPage = () => {
     task_type: t.task_type,
   }));
 
+  const ganttTasks = (filteredTasks || []).map(t => ({
+    id: t.id,
+    title: t.title,
+    start: t.due_date ? new Date(new Date(t.due_date).getTime() - 7 * 24 * 60 * 60 * 1000).toISOString() : null,
+    end: t.due_date,
+    status: t.status,
+    priority: t.priority,
+    progress: t.status === "completed" || t.status === "approved" ? 100
+      : t.status === "review" ? 75
+      : t.status === "in_progress" ? 50
+      : t.status === "blocked" ? 25
+      : 0,
+    dependencies: [],
+  }));
+
   return (
     <>
-      {/* View Toggle + Status Filters */}
-      <div className="flex items-center gap-2 mb-2">
+      {/* View Toggle */}
+      <div className="flex items-center gap-2 mb-3">
         <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-0.5">
           <button
             onClick={() => setViewMode("list")}
@@ -171,42 +183,21 @@ const TasksPage = () => {
           >
             <Columns3 className="w-4 h-4" />
           </button>
-        </div>
-
-        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide flex-1">
-          {statusFilters.map((filter) => (
-            <button
-              key={filter.value}
-              onClick={() => setFilterStatus(filter.value)}
-              className={cn(
-                "px-4 py-2 rounded-full text-sm font-medium transition-colors whitespace-nowrap",
-                filterStatus === filter.value
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-card hover:bg-muted border border-border"
-              )}
-            >
-              {filter.label}
-            </button>
-          ))}
+          <button
+            onClick={() => setViewMode("gantt")}
+            className={cn(
+              "p-2 rounded-md transition-all",
+              viewMode === "gantt" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <GanttChart className="w-4 h-4" />
+          </button>
         </div>
       </div>
 
-      {/* Priority Filter Pills */}
-      <div className="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide">
-        {priorityFilters.map((filter) => (
-          <button
-            key={`p-${filter.value}`}
-            onClick={() => setFilterPriority(filter.value)}
-            className={cn(
-              "px-3 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap",
-              filterPriority === filter.value
-                ? "bg-secondary text-secondary-foreground"
-                : "bg-card hover:bg-muted border border-border"
-            )}
-          >
-            {filter.label}
-          </button>
-        ))}
+      {/* Advanced Filters */}
+      <div className="mb-4">
+        <AdvancedFilters filters={filters} onFiltersChange={setFilters} />
       </div>
 
       {/* Blocked reason prompt */}
@@ -243,6 +234,8 @@ const TasksPage = () => {
         </div>
       ) : error ? (
         <div className="text-center py-12 text-destructive">Failed to load tasks</div>
+      ) : viewMode === "gantt" ? (
+        <GanttTimeline tasks={ganttTasks} onTaskClick={handleGanttTaskClick} />
       ) : viewMode === "kanban" ? (
         <KanbanBoard
           tasks={kanbanTasks}
@@ -274,17 +267,17 @@ const TasksPage = () => {
           <ClipboardList className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
           <h3 className="font-semibold">No tasks found</h3>
           <p className="text-sm text-muted-foreground mt-1">
-            {filterStatus || filterPriority ? "Try a different filter" : "Tasks will appear here when assigned by your manager"}
+            {filters.status || filters.priority || filters.search ? "Try different filters" : "Tasks will appear here when assigned by your manager"}
           </p>
         </div>
       )}
 
-      {/* Task Detail Drawer */}
       <TaskDetailDrawer
         task={selectedTask}
         open={drawerOpen}
         onOpenChange={setDrawerOpen}
         canUploadEvidence
+        allTasks={allTasksList}
       />
     </>
   );

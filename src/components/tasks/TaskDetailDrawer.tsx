@@ -11,6 +11,9 @@ import { TaskStatusBadge } from "./TaskStatusBadge";
 import { TaskActivityTimeline } from "./TaskActivityTimeline";
 import { TaskEvidenceSection } from "./TaskEvidenceSection";
 import { TaskCommentsSection } from "./TaskCommentsSection";
+import { SubtasksSection } from "./SubtasksSection";
+import { DependenciesSection } from "./DependenciesSection";
+import { TagsSection } from "./TagsSection";
 import { Calendar, Folder, User, Flag, RefreshCw } from "lucide-react";
 import { formatDistanceToNow, isPast } from "date-fns";
 
@@ -33,6 +36,10 @@ interface TaskDetailDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   canUploadEvidence?: boolean;
+  canManageTags?: boolean;
+  canManageDependencies?: boolean;
+  canCreateSubtasks?: boolean;
+  allTasks?: { id: string; title: string }[];
 }
 
 const priorityLabels: Record<string, string> = {
@@ -47,6 +54,10 @@ export const TaskDetailDrawer = ({
   open,
   onOpenChange,
   canUploadEvidence = false,
+  canManageTags = false,
+  canManageDependencies = false,
+  canCreateSubtasks = false,
+  allTasks = [],
 }: TaskDetailDrawerProps) => {
   const [activeTab, setActiveTab] = useState("details");
 
@@ -73,18 +84,23 @@ export const TaskDetailDrawer = ({
               {task.description}
             </DrawerDescription>
           )}
+          {/* Tags inline */}
+          <div className="mt-2">
+            <TagsSection taskId={task.id} canManage={canManageTags} />
+          </div>
         </DrawerHeader>
 
         <div className="px-4 pb-6 overflow-y-auto">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="w-full">
               <TabsTrigger value="details" className="flex-1 text-xs">Details</TabsTrigger>
+              <TabsTrigger value="subtasks" className="flex-1 text-xs">Subtasks</TabsTrigger>
               <TabsTrigger value="evidence" className="flex-1 text-xs">Evidence</TabsTrigger>
               <TabsTrigger value="activity" className="flex-1 text-xs">Activity</TabsTrigger>
               <TabsTrigger value="comments" className="flex-1 text-xs">Comments</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="details" className="mt-4 space-y-3">
+            <TabsContent value="details" className="mt-4 space-y-4">
               {/* Meta info */}
               <div className="space-y-2.5">
                 {task.assigned_to_name && (
@@ -131,6 +147,20 @@ export const TaskDetailDrawer = ({
                   </div>
                 )}
               </div>
+
+              {/* Dependencies */}
+              <div>
+                <h4 className="text-sm font-medium mb-2">Dependencies</h4>
+                <DependenciesSection
+                  taskId={task.id}
+                  canManage={canManageDependencies}
+                  allTasks={allTasks}
+                />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="subtasks" className="mt-4">
+              <SubtasksSection taskId={task.id} canCreate={canCreateSubtasks} />
             </TabsContent>
 
             <TabsContent value="evidence" className="mt-4">
