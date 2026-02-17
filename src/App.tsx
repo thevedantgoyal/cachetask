@@ -25,6 +25,7 @@ import AttendancePage from "./pages/AttendancePage";
 import LeavePage from "./pages/LeavePage";
 import TimesheetPage from "./pages/TimesheetPage";
 import RoomBookingPage from "./pages/RoomBookingPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -47,6 +48,7 @@ const App = () => {
           <AuthProvider>
             <Routes>
               <Route path="/auth" element={<AuthPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/install" element={<InstallPage />} />
               <Route path="/" element={<ProtectedWithLayout><Index /></ProtectedWithLayout>} />
               <Route path="/tasks" element={<ProtectedWithLayout><TasksPage /></ProtectedWithLayout>} />
