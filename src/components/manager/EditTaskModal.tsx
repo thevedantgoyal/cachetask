@@ -25,6 +25,8 @@ interface EditTaskModalProps {
     priority?: string;
     dueDate?: string | null;
     status?: string;
+    blockedReason?: string;
+    taskType?: string;
   }) => Promise<void>;
   isSaving: boolean;
   teamMembers: TeamMember[];
@@ -47,18 +49,20 @@ export const EditTaskModal = ({
   const [priority, setPriority] = useState("medium");
   const [dueDate, setDueDate] = useState("");
   const [status, setStatus] = useState("pending");
+  const [taskType, setTaskType] = useState("project_task");
+  const [blockedReason, setBlockedReason] = useState("");
 
-  // Populate form when task changes
   useEffect(() => {
     if (task) {
       setTitle(task.title);
       setDescription(task.description || "");
       setAssignedTo(task.assigned_to_id || "");
-      // Find project id from project name (would need to be passed from parent)
       setProjectId("");
       setPriority(task.priority || "medium");
       setDueDate(task.due_date ? task.due_date.split("T")[0] : "");
       setStatus(task.status || "pending");
+      setTaskType(task.task_type || "project_task");
+      setBlockedReason(task.blocked_reason || "");
     }
   }, [task]);
 
@@ -74,6 +78,8 @@ export const EditTaskModal = ({
       priority,
       dueDate: dueDate || null,
       status,
+      blockedReason: status === "blocked" ? blockedReason.trim() : undefined,
+      taskType,
     });
   };
 
@@ -83,7 +89,6 @@ export const EditTaskModal = ({
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -92,31 +97,23 @@ export const EditTaskModal = ({
             onClick={onClose}
           />
 
-          {/* Modal */}
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             className="fixed inset-x-4 top-[10%] max-w-lg mx-auto bg-card rounded-2xl shadow-xl border border-border z-50 overflow-hidden"
           >
-            {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-border">
               <h2 className="text-lg font-semibold">Edit Task</h2>
-              <button
-                onClick={onClose}
-                className="p-2 rounded-full hover:bg-muted transition-colors"
-              >
+              <button onClick={onClose} className="p-2 rounded-full hover:bg-muted transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Content */}
             <div className="p-4 space-y-4 max-h-[60vh] overflow-y-auto">
               {/* Title */}
               <div>
-                <label className="text-sm font-medium text-muted-foreground mb-1.5 block">
-                  Title *
-                </label>
+                <label className="text-sm font-medium text-muted-foreground mb-1.5 block">Title *</label>
                 <input
                   type="text"
                   value={title}
@@ -128,9 +125,7 @@ export const EditTaskModal = ({
 
               {/* Description */}
               <div>
-                <label className="text-sm font-medium text-muted-foreground mb-1.5 block">
-                  Description
-                </label>
+                <label className="text-sm font-medium text-muted-foreground mb-1.5 block">Description</label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
@@ -140,28 +135,55 @@ export const EditTaskModal = ({
                 />
               </div>
 
-              {/* Status */}
-              <div>
-                <label className="text-sm font-medium text-muted-foreground mb-1.5 block">
-                  Status
-                </label>
-                <select
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value)}
-                  className="w-full p-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none"
-                >
-                  <option value="pending">Pending</option>
-                  <option value="in_progress">In Progress</option>
-                  <option value="completed">Completed</option>
-                </select>
+              {/* Status & Task Type */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground mb-1.5 block">Status</label>
+                  <select
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value)}
+                    className="w-full p-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none"
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="review">In Review</option>
+                    <option value="blocked">Blocked</option>
+                    <option value="completed">Completed</option>
+                    <option value="approved">Approved</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground mb-1.5 block">Task Type</label>
+                  <select
+                    value={taskType}
+                    onChange={(e) => setTaskType(e.target.value)}
+                    className="w-full p-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none"
+                  >
+                    <option value="project_task">Project Task</option>
+                    <option value="adhoc_task">Ad-hoc Task</option>
+                  </select>
+                </div>
               </div>
+
+              {/* Blocked reason (conditional) */}
+              {status === "blocked" && (
+                <div>
+                  <label className="text-sm font-medium text-destructive mb-1.5 block">Blocked Reason *</label>
+                  <textarea
+                    value={blockedReason}
+                    onChange={(e) => setBlockedReason(e.target.value)}
+                    placeholder="Why is this task blocked?"
+                    rows={2}
+                    className="w-full p-3 rounded-xl border border-destructive/30 bg-background focus:outline-none focus:ring-2 focus:ring-destructive/20 resize-none"
+                  />
+                </div>
+              )}
 
               {/* Assign To & Project */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground mb-1.5 block">
-                    Assign To
-                  </label>
+                  <label className="text-sm font-medium text-muted-foreground mb-1.5 block">Assign To</label>
                   <div className="relative">
                     <select
                       value={assignedTo}
@@ -170,9 +192,7 @@ export const EditTaskModal = ({
                     >
                       <option value="">Unassigned</option>
                       {teamMembers.map((member) => (
-                        <option key={member.id} value={member.id}>
-                          {member.full_name}
-                        </option>
+                        <option key={member.id} value={member.id}>{member.full_name}</option>
                       ))}
                     </select>
                     <User className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
@@ -180,9 +200,7 @@ export const EditTaskModal = ({
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground mb-1.5 block">
-                    Project
-                  </label>
+                  <label className="text-sm font-medium text-muted-foreground mb-1.5 block">Project</label>
                   <div className="relative">
                     <select
                       value={projectId}
@@ -191,9 +209,7 @@ export const EditTaskModal = ({
                     >
                       <option value="">No project</option>
                       {projects.map((project) => (
-                        <option key={project.id} value={project.id}>
-                          {project.name}
-                        </option>
+                        <option key={project.id} value={project.id}>{project.name}</option>
                       ))}
                     </select>
                     <Folder className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
@@ -204,9 +220,7 @@ export const EditTaskModal = ({
               {/* Priority & Due Date */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground mb-1.5 block">
-                    Priority
-                  </label>
+                  <label className="text-sm font-medium text-muted-foreground mb-1.5 block">Priority</label>
                   <div className="relative">
                     <select
                       value={priority}
@@ -223,9 +237,7 @@ export const EditTaskModal = ({
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground mb-1.5 block">
-                    Due Date
-                  </label>
+                  <label className="text-sm font-medium text-muted-foreground mb-1.5 block">Due Date</label>
                   <div className="relative">
                     <input
                       type="date"
@@ -241,21 +253,11 @@ export const EditTaskModal = ({
 
             {/* Footer */}
             <div className="flex gap-2 p-4 border-t border-border">
-              <Button
-                onClick={handleSubmit}
-                disabled={isSaving || !title.trim()}
-                className="flex-1"
-              >
-                {isSaving ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <Save className="w-4 h-4 mr-2" />
-                )}
+              <Button onClick={handleSubmit} disabled={isSaving || !title.trim()} className="flex-1">
+                {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
                 Save Changes
               </Button>
-              <Button variant="outline" onClick={onClose}>
-                Cancel
-              </Button>
+              <Button variant="outline" onClick={onClose}>Cancel</Button>
             </div>
           </motion.div>
         </>

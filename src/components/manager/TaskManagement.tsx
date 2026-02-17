@@ -7,12 +7,12 @@ import {
   Folder,
   Flag,
   Loader2,
-  CheckCircle,
   Clock,
-  PlayCircle,
   Trash2,
   ChevronDown,
   Edit,
+  RefreshCw,
+  ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,8 +23,12 @@ import {
   useUpdateTaskStatus,
   useDeleteTask,
   useUpdateTask,
+  useReassignTask,
   ManagedTask,
 } from "@/hooks/useTaskManagement";
+import { useInsertActivityLog } from "@/hooks/useTaskActivityLogs";
+import { TaskStatusBadge } from "@/components/tasks/TaskStatusBadge";
+import { TaskDetailDrawer, TaskDetailData } from "@/components/tasks/TaskDetailDrawer";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { EditTaskModal } from "./EditTaskModal";
@@ -46,22 +50,15 @@ const priorityColors = {
   urgent: "bg-destructive/10 text-destructive",
 };
 
-const statusIcons = {
-  pending: Clock,
-  in_progress: PlayCircle,
-  completed: CheckCircle,
-};
-
-const statusColors = {
-  pending: "text-muted-foreground",
-  in_progress: "text-primary",
-  completed: "text-green-500",
-};
-
 export const TaskManagement = () => {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>("");
   const [editingTask, setEditingTask] = useState<ManagedTask | null>(null);
+  const [selectedTask, setSelectedTask] = useState<TaskDetailData | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [reassignTaskId, setReassignTaskId] = useState<string | null>(null);
+  const [reassignTo, setReassignTo] = useState("");
+  const [reassignReason, setReassignReason] = useState("");
   
   // Form state
   const [title, setTitle] = useState("");
@@ -79,6 +76,8 @@ export const TaskManagement = () => {
   const updateStatus = useUpdateTaskStatus();
   const deleteTask = useDeleteTask();
   const updateTask = useUpdateTask();
+  const reassignTask = useReassignTask();
+  const insertLog = useInsertActivityLog();
 
   const resetForm = () => {
     setTitle("");
@@ -97,7 +96,7 @@ export const TaskManagement = () => {
     }
 
     try {
-      await createTask.mutateAsync({
+      const result = await createTask.mutateAsync({
         title: title.trim(),
         description: description.trim() || undefined,
         assignedTo: assignedTo || undefined,
@@ -105,6 +104,14 @@ export const TaskManagement = () => {
         priority,
         dueDate: dueDate || undefined,
       });
+      // Log creation
+      if (result?.id) {
+        insertLog.mutateAsync({
+          taskId: result.id,
+          actionType: "created",
+          newValue: { title: title.trim(), priority, status: "pending" },
+        }).catch(console.error);
+      }
       toast.success("Task created successfully");
       resetForm();
     } catch (error) {
@@ -112,9 +119,15 @@ export const TaskManagement = () => {
     }
   };
 
-  const handleStatusChange = async (taskId: string, newStatus: string) => {
+  const handleStatusChange = async (taskId: string, oldStatus: string | null, newStatus: string) => {
     try {
       await updateStatus.mutateAsync({ taskId, status: newStatus });
+      await insertLog.mutateAsync({
+        taskId,
+        actionType: "status_changed",
+        oldValue: { status: oldStatus },
+        newValue: { status: newStatus },
+      });
       toast.success(`Task marked as ${newStatus.replace("_", " ")}`);
     } catch (error) {
       toast.error("Failed to update task status");
@@ -122,13 +135,30 @@ export const TaskManagement = () => {
   };
 
   const handleDeleteTask = async (taskId: string) => {
-    if (!confirm("Are you sure you want to delete this task?")) return;
+    if (!confirm("Are you sure you want to archive this task?")) return;
 
     try {
       await deleteTask.mutateAsync(taskId);
-      toast.success("Task deleted");
+      toast.success("Task archived");
     } catch (error) {
-      toast.error("Failed to delete task");
+      toast.error("Failed to archive task");
+    }
+  };
+
+  const handleReassign = async () => {
+    if (!reassignTaskId || !reassignTo) return;
+    try {
+      await reassignTask.mutateAsync({
+        taskId: reassignTaskId,
+        newAssigneeId: reassignTo,
+        reason: reassignReason.trim() || undefined,
+      });
+      toast.success("Task reassigned");
+      setReassignTaskId(null);
+      setReassignTo("");
+      setReassignReason("");
+    } catch {
+      toast.error("Failed to reassign task");
     }
   };
 
@@ -141,6 +171,8 @@ export const TaskManagement = () => {
     priority?: string;
     dueDate?: string | null;
     status?: string;
+    blockedReason?: string;
+    taskType?: string;
   }) => {
     try {
       await updateTask.mutateAsync(data);
@@ -151,11 +183,38 @@ export const TaskManagement = () => {
     }
   };
 
+  const handleTaskClick = (task: ManagedTask) => {
+    setSelectedTask({
+      id: task.id,
+      title: task.title,
+      description: task.description,
+      status: task.status,
+      priority: task.priority,
+      due_date: task.due_date,
+      project_name: task.project_name,
+      assigned_to_name: task.assigned_to_name,
+      reassignment_count: task.reassignment_count,
+      blocked_reason: task.blocked_reason,
+      task_type: task.task_type,
+    });
+    setDrawerOpen(true);
+  };
+
   const filteredTasks = filterStatus
     ? tasks.filter((t) => t.status === filterStatus)
     : tasks;
 
   const isLoading = membersLoading || projectsLoading || tasksLoading;
+
+  const statusFilters = [
+    { value: "", label: "All" },
+    { value: "pending", label: "Pending" },
+    { value: "in_progress", label: "In Progress" },
+    { value: "review", label: "Review" },
+    { value: "blocked", label: "Blocked" },
+    { value: "completed", label: "Completed" },
+    { value: "approved", label: "Approved" },
+  ];
 
   return (
     <div className="space-y-6">
@@ -185,7 +244,6 @@ export const TaskManagement = () => {
             New Task
           </h3>
 
-          {/* Title */}
           <input
             type="text"
             value={title}
@@ -194,7 +252,6 @@ export const TaskManagement = () => {
             className="w-full p-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
 
-          {/* Description */}
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -203,7 +260,6 @@ export const TaskManagement = () => {
             className="w-full p-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none"
           />
 
-          {/* Assign To & Project */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="relative">
               <select
@@ -238,7 +294,6 @@ export const TaskManagement = () => {
             </div>
           </div>
 
-          {/* Priority & Due Date */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="relative">
               <select
@@ -265,7 +320,6 @@ export const TaskManagement = () => {
             </div>
           </div>
 
-          {/* Actions */}
           <div className="flex gap-2 pt-2">
             <Button
               onClick={handleCreateTask}
@@ -286,14 +340,43 @@ export const TaskManagement = () => {
         </motion.div>
       )}
 
+      {/* Reassign Modal */}
+      {reassignTaskId && (
+        <div className="bg-card rounded-2xl p-5 shadow-soft border border-border/50 space-y-3">
+          <h3 className="font-semibold flex items-center gap-2">
+            <RefreshCw className="w-4 h-4 text-primary" />
+            Reassign Task
+          </h3>
+          <select
+            value={reassignTo}
+            onChange={(e) => setReassignTo(e.target.value)}
+            className="w-full p-3 rounded-xl border border-border bg-background"
+          >
+            <option value="">Select new assignee</option>
+            {teamMembers.map((m) => (
+              <option key={m.id} value={m.id}>{m.full_name}</option>
+            ))}
+          </select>
+          <input
+            type="text"
+            value={reassignReason}
+            onChange={(e) => setReassignReason(e.target.value)}
+            placeholder="Reason (optional)"
+            className="w-full p-3 rounded-xl border border-border bg-background text-sm"
+          />
+          <div className="flex gap-2">
+            <Button onClick={handleReassign} disabled={!reassignTo || reassignTask.isPending} className="flex-1">
+              {reassignTask.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Reassign
+            </Button>
+            <Button variant="outline" onClick={() => setReassignTaskId(null)}>Cancel</Button>
+          </div>
+        </div>
+      )}
+
       {/* Filter */}
       <div className="flex gap-2 overflow-x-auto pb-2">
-        {[
-          { value: "", label: "All" },
-          { value: "pending", label: "Pending" },
-          { value: "in_progress", label: "In Progress" },
-          { value: "completed", label: "Completed" },
-        ].map((filter) => (
+        {statusFilters.map((filter) => (
           <button
             key={filter.value}
             onClick={() => setFilterStatus(filter.value)}
@@ -315,7 +398,7 @@ export const TaskManagement = () => {
         </div>
       ) : filteredTasks.length === 0 ? (
         <div className="text-center py-12 bg-muted/30 rounded-2xl">
-          <CheckCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+          <Clock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
           <h3 className="font-semibold">No tasks found</h3>
           <p className="text-sm text-muted-foreground mt-1">
             {filterStatus ? "Try a different filter" : "Create your first task above"}
@@ -328,122 +411,90 @@ export const TaskManagement = () => {
           animate="visible"
           className="space-y-3"
         >
-          {filteredTasks.map((task) => {
-            const StatusIcon = statusIcons[task.status as keyof typeof statusIcons] || Clock;
-            const statusColor = statusColors[task.status as keyof typeof statusColors] || "text-muted-foreground";
-
-            return (
-              <motion.div
-                key={task.id}
-                variants={itemVariants}
-                className="bg-card rounded-2xl p-4 shadow-soft border border-border/50"
-              >
-                <div className="flex items-start gap-3">
-                  {/* Status Icon */}
-                  <button
-                    onClick={() => {
-                      const nextStatus =
-                        task.status === "pending"
-                          ? "in_progress"
-                          : task.status === "in_progress"
-                          ? "completed"
-                          : "pending";
-                      handleStatusChange(task.id, nextStatus);
-                    }}
-                    className={`mt-0.5 ${statusColor} hover:opacity-70 transition-opacity`}
-                    title="Click to change status"
-                  >
-                    <StatusIcon className="w-5 h-5" />
-                  </button>
-
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <h4 className={`font-medium ${task.status === "completed" ? "line-through text-muted-foreground" : ""}`}>
-                        {task.title}
-                      </h4>
-                      <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${priorityColors[task.priority as keyof typeof priorityColors] || priorityColors.medium}`}>
-                        {task.priority}
+          {filteredTasks.map((task) => (
+            <motion.div
+              key={task.id}
+              variants={itemVariants}
+              className="bg-card rounded-2xl p-4 shadow-soft border border-border/50 cursor-pointer hover:shadow-card transition-shadow"
+              onClick={() => handleTaskClick(task)}
+            >
+              <div className="flex items-start gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <TaskStatusBadge status={task.status} />
+                    <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${priorityColors[task.priority as keyof typeof priorityColors] || priorityColors.medium}`}>
+                      {task.priority}
+                    </span>
+                    {(task.reassignment_count || 0) > 0 && (
+                      <span className="text-xs text-muted-foreground flex items-center gap-0.5">
+                        <RefreshCw className="w-3 h-3" /> {task.reassignment_count}
                       </span>
-                    </div>
-
-                    {task.description && (
-                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                        {task.description}
-                      </p>
                     )}
-
-                    <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-muted-foreground">
-                      {task.assigned_to_name && (
-                        <span className="flex items-center gap-1">
-                          <User className="w-3 h-3" />
-                          {task.assigned_to_name}
-                        </span>
-                      )}
-                      {task.project_name && (
-                        <span className="flex items-center gap-1">
-                          <Folder className="w-3 h-3" />
-                          {task.project_name}
-                        </span>
-                      )}
-                      {task.due_date && (
-                        <span className="flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
-                          {formatDistanceToNow(new Date(task.due_date), { addSuffix: true })}
-                        </span>
-                      )}
-                    </div>
                   </div>
 
-                  {/* Actions */}
-                  <div className="relative group">
-                    <button className="p-1.5 hover:bg-muted rounded-lg transition-colors">
-                      <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                    </button>
-                    <div className="absolute right-0 top-full mt-1 bg-card border border-border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 min-w-[140px]">
-                      <button
-                        onClick={() => setEditingTask(task)}
-                        className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"
-                      >
-                        <Edit className="w-4 h-4" />
-                        Edit Task
-                      </button>
-                      <hr className="my-1 border-border" />
-                      <button
-                        onClick={() => handleStatusChange(task.id, "pending")}
-                        className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"
-                      >
-                        <Clock className="w-4 h-4" />
-                        Set Pending
-                      </button>
-                      <button
-                        onClick={() => handleStatusChange(task.id, "in_progress")}
-                        className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"
-                      >
-                        <PlayCircle className="w-4 h-4" />
-                        In Progress
-                      </button>
-                      <button
-                        onClick={() => handleStatusChange(task.id, "completed")}
-                        className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"
-                      >
-                        <CheckCircle className="w-4 h-4" />
-                        Complete
-                      </button>
-                      <hr className="my-1 border-border" />
-                      <button
-                        onClick={() => handleDeleteTask(task.id)}
-                        className="w-full px-3 py-2 text-left text-sm hover:bg-destructive/10 text-destructive flex items-center gap-2"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        Delete
-                      </button>
-                    </div>
+                  <h4 className={`font-medium ${task.status === "completed" || task.status === "approved" ? "line-through text-muted-foreground" : ""}`}>
+                    {task.title}
+                  </h4>
+
+                  {task.description && (
+                    <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{task.description}</p>
+                  )}
+
+                  <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-muted-foreground">
+                    {task.assigned_to_name && (
+                      <span className="flex items-center gap-1">
+                        <User className="w-3 h-3" /> {task.assigned_to_name}
+                      </span>
+                    )}
+                    {task.project_name && (
+                      <span className="flex items-center gap-1">
+                        <Folder className="w-3 h-3" /> {task.project_name}
+                      </span>
+                    )}
+                    {task.due_date && (
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-3 h-3" />
+                        {formatDistanceToNow(new Date(task.due_date), { addSuffix: true })}
+                      </span>
+                    )}
                   </div>
                 </div>
-              </motion.div>
-            );
-          })}
+
+                {/* Actions dropdown */}
+                <div className="relative group" onClick={(e) => e.stopPropagation()}>
+                  <button className="p-1.5 hover:bg-muted rounded-lg transition-colors">
+                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                  </button>
+                  <div className="absolute right-0 top-full mt-1 bg-card border border-border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 min-w-[160px]">
+                    <button onClick={() => setEditingTask(task)} className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2">
+                      <Edit className="w-4 h-4" /> Edit
+                    </button>
+                    <button onClick={() => setReassignTaskId(task.id)} className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2">
+                      <RefreshCw className="w-4 h-4" /> Reassign
+                    </button>
+                    <hr className="my-1 border-border" />
+                    {["pending", "in_progress", "review", "blocked", "completed", "approved"].map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => handleStatusChange(task.id, task.status, s)}
+                        className="w-full px-3 py-2 text-left text-sm hover:bg-muted capitalize flex items-center gap-2"
+                      >
+                        {s === "approved" && <ShieldCheck className="w-4 h-4" />}
+                        {s.replace("_", " ")}
+                      </button>
+                    ))}
+                    <hr className="my-1 border-border" />
+                    <button
+                      onClick={() => handleDeleteTask(task.id)}
+                      className="w-full px-3 py-2 text-left text-sm hover:bg-destructive/10 text-destructive flex items-center gap-2"
+                    >
+                      <Trash2 className="w-4 h-4" /> Archive
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          ))}
         </motion.div>
       )}
 
@@ -456,6 +507,14 @@ export const TaskManagement = () => {
         isSaving={updateTask.isPending}
         teamMembers={teamMembers}
         projects={projects}
+      />
+
+      {/* Task Detail Drawer */}
+      <TaskDetailDrawer
+        task={selectedTask}
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        canUploadEvidence={false}
       />
     </div>
   );

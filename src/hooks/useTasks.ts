@@ -11,6 +11,10 @@ export interface Task {
   due_date: string | null;
   status: string | null;
   priority: string | null;
+  task_type: string | null;
+  blocked_reason: string | null;
+  reassignment_count: number;
+  assigned_to_name?: string | null;
 }
 
 export const useTasks = () => {
@@ -21,7 +25,6 @@ export const useTasks = () => {
     queryFn: async () => {
       if (!user) return [];
 
-      // First get the user's profile id
       const { data: profile } = await supabase
         .from("profiles")
         .select("id")
@@ -30,7 +33,6 @@ export const useTasks = () => {
 
       if (!profile) return [];
 
-      // Fetch tasks assigned to this user with project info
       const { data, error } = await supabase
         .from("tasks")
         .select(`
@@ -40,17 +42,22 @@ export const useTasks = () => {
           due_date,
           status,
           priority,
+          task_type,
+          blocked_reason,
+          reassignment_count,
+          is_deleted,
           projects (
             name
           )
         `)
         .eq("assigned_to", profile.id)
-        .neq("status", "completed")
+        .eq("is_deleted", false)
+        .neq("status", "approved")
         .order("due_date", { ascending: true, nullsFirst: false });
 
       if (error) throw error;
 
-      return (data || []).map((task) => ({
+      return (data || []).map((task: any) => ({
         id: task.id,
         title: task.title,
         description: task.description,
@@ -58,6 +65,9 @@ export const useTasks = () => {
         due_date: task.due_date,
         status: task.status,
         priority: task.priority,
+        task_type: task.task_type || "project_task",
+        blocked_reason: task.blocked_reason || null,
+        reassignment_count: task.reassignment_count || 0,
       }));
     },
     enabled: !!user,

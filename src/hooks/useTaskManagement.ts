@@ -28,6 +28,9 @@ export interface ManagedTask {
   assigned_to_name: string | null;
   assigned_to_id: string | null;
   project_name: string | null;
+  task_type: string | null;
+  blocked_reason: string | null;
+  reassignment_count: number;
 }
 
 // Fetch team members that the current user manages
@@ -131,7 +134,7 @@ export const useManagedTasks = () => {
 
       if (!canViewAll && !isManager) return [];
 
-      // Fetch tasks
+      // Fetch tasks (exclude soft-deleted)
       const { data: tasks, error } = await supabase
         .from("tasks")
         .select(`
@@ -143,8 +146,13 @@ export const useManagedTasks = () => {
           due_date,
           created_at,
           assigned_to,
+          task_type,
+          blocked_reason,
+          reassignment_count,
+          is_deleted,
           projects (name)
         `)
+        .eq("is_deleted", false)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -171,7 +179,7 @@ export const useManagedTasks = () => {
         return assignee?.manager_id === managerProfile.id;
       });
 
-      return (filteredTasks || []).map((task) => ({
+      return (filteredTasks || []).map((task: any) => ({
         id: task.id,
         title: task.title,
         description: task.description,
@@ -182,6 +190,9 @@ export const useManagedTasks = () => {
         assigned_to_id: task.assigned_to,
         assigned_to_name: task.assigned_to ? profileMap.get(task.assigned_to)?.full_name || null : null,
         project_name: task.projects?.name || null,
+        task_type: task.task_type || "project_task",
+        blocked_reason: task.blocked_reason || null,
+        reassignment_count: task.reassignment_count || 0,
       }));
     },
     enabled: !!user,
@@ -279,16 +290,24 @@ export const useUpdateTaskStatus = () => {
     mutationFn: async ({
       taskId,
       status,
+      blockedReason,
     }: {
       taskId: string;
       status: string;
+      blockedReason?: string;
     }) => {
-      const updateData: { status: string; completed_at?: string | null } = { status };
+      const updateData: Record<string, unknown> = { status };
       
       if (status === "completed") {
         updateData.completed_at = new Date().toISOString();
-      } else {
+      } else if (status !== "approved") {
         updateData.completed_at = null;
+      }
+
+      if (status === "blocked" && blockedReason) {
+        updateData.blocked_reason = blockedReason;
+      } else if (status !== "blocked") {
+        updateData.blocked_reason = null;
       }
 
       const { error } = await supabase
@@ -305,18 +324,125 @@ export const useUpdateTaskStatus = () => {
   });
 };
 
-// Delete a task
+// Soft delete a task
 export const useDeleteTask = () => {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   return useMutation({
     mutationFn: async (taskId: string) => {
+      if (!user) throw new Error("Not authenticated");
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
       const { error } = await supabase
         .from("tasks")
-        .delete()
+        .update({
+          is_deleted: true,
+          deleted_at: new Date().toISOString(),
+          deleted_by: profile?.id || null,
+        })
         .eq("id", taskId);
 
       if (error) throw error;
+
+      // Log activity
+      if (profile) {
+        await supabase.from("task_activity_logs").insert([{
+          task_id: taskId,
+          action_type: "deleted",
+          performed_by: profile.id,
+        }]);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["managed-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+    },
+  });
+};
+
+// Reassign a task
+export const useReassignTask = () => {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async ({
+      taskId,
+      newAssigneeId,
+      reason,
+    }: {
+      taskId: string;
+      newAssigneeId: string;
+      reason?: string;
+    }) => {
+      if (!user) throw new Error("Not authenticated");
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      // Get current task to find old assignee
+      const { data: task } = await supabase
+        .from("tasks")
+        .select("assigned_to, title, reassignment_count")
+        .eq("id", taskId)
+        .single();
+
+      if (!task || !profile) throw new Error("Task or profile not found");
+
+      const { error } = await supabase
+        .from("tasks")
+        .update({
+          assigned_to: newAssigneeId,
+          reassigned_from: task.assigned_to,
+          reassignment_reason: reason || null,
+          reassignment_count: (task.reassignment_count || 0) + 1,
+          assigned_at: new Date().toISOString(),
+        })
+        .eq("id", taskId);
+
+      if (error) throw error;
+
+      // Log activity
+      await supabase.from("task_activity_logs").insert([{
+        task_id: taskId,
+        action_type: "reassigned",
+        performed_by: profile.id,
+        old_value: { assigned_to: task.assigned_to } as unknown as import("@/integrations/supabase/types").Json,
+        new_value: { assigned_to: newAssigneeId, reason } as unknown as import("@/integrations/supabase/types").Json,
+      }]);
+
+      // Notify new assignee
+      const { data: assigneeProfile } = await supabase
+        .from("profiles")
+        .select("email, user_id")
+        .eq("id", newAssigneeId)
+        .maybeSingle();
+
+      if (assigneeProfile?.user_id) {
+        await supabase.rpc("create_notification", {
+          _user_id: assigneeProfile.user_id,
+          _type: "task_reassigned",
+          _title: "Task Reassigned to You",
+          _message: `You've been assigned: "${task.title}" by ${profile.full_name}`,
+          _metadata: { task_id: taskId },
+        });
+
+        sendPushNotification(
+          assigneeProfile.user_id,
+          "Task Reassigned 🔄",
+          `You've been assigned: "${task.title}"`,
+          { url: "/tasks", tag: "task-reassigned" }
+        ).catch(console.error);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["managed-tasks"] });
@@ -339,6 +465,8 @@ export const useUpdateTask = () => {
       priority,
       dueDate,
       status,
+      blockedReason,
+      taskType,
     }: {
       taskId: string;
       title: string;
@@ -348,6 +476,8 @@ export const useUpdateTask = () => {
       priority?: string;
       dueDate?: string | null;
       status?: string;
+      blockedReason?: string;
+      taskType?: string;
     }) => {
       const updateData: Record<string, unknown> = {
         title,
@@ -358,12 +488,21 @@ export const useUpdateTask = () => {
         due_date: dueDate || null,
       };
 
+      if (taskType) {
+        updateData.task_type = taskType;
+      }
+
       if (status) {
         updateData.status = status;
         if (status === "completed") {
           updateData.completed_at = new Date().toISOString();
-        } else {
+        } else if (status !== "approved") {
           updateData.completed_at = null;
+        }
+        if (status === "blocked" && blockedReason) {
+          updateData.blocked_reason = blockedReason;
+        } else if (status !== "blocked") {
+          updateData.blocked_reason = null;
         }
       }
 
