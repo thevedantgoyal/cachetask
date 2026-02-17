@@ -645,6 +645,55 @@ export type Database = {
           },
         ]
       }
+      task_dependencies: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          dependency_type: string
+          depends_on: string
+          id: string
+          task_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          dependency_type?: string
+          depends_on: string
+          id?: string
+          task_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          dependency_type?: string
+          depends_on?: string
+          id?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_dependencies_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_dependencies_depends_on_fkey"
+            columns: ["depends_on"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_dependencies_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       task_evidence: {
         Row: {
           comment: string | null
@@ -690,6 +739,84 @@ export type Database = {
           },
         ]
       }
+      task_tag_assignments: {
+        Row: {
+          assigned_at: string
+          assigned_by: string | null
+          id: string
+          tag_id: string
+          task_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by?: string | null
+          id?: string
+          tag_id: string
+          task_id: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string | null
+          id?: string
+          tag_id?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_tag_assignments_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_tag_assignments_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "task_tags"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_tag_assignments_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_tags: {
+        Row: {
+          color: string
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_tags_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tasks: {
         Row: {
           assigned_at: string | null
@@ -704,6 +831,7 @@ export type Database = {
           due_date: string | null
           id: string
           is_deleted: boolean
+          parent_task_id: string | null
           priority: string | null
           project_id: string | null
           reassigned_from: string | null
@@ -727,6 +855,7 @@ export type Database = {
           due_date?: string | null
           id?: string
           is_deleted?: boolean
+          parent_task_id?: string | null
           priority?: string | null
           project_id?: string | null
           reassigned_from?: string | null
@@ -750,6 +879,7 @@ export type Database = {
           due_date?: string | null
           id?: string
           is_deleted?: boolean
+          parent_task_id?: string | null
           priority?: string | null
           project_id?: string | null
           reassigned_from?: string | null
@@ -780,6 +910,13 @@ export type Database = {
             columns: ["deleted_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_parent_task_id_fkey"
+            columns: ["parent_task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
             referencedColumns: ["id"]
           },
           {

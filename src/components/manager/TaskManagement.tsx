@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
   Plus,
@@ -17,6 +17,7 @@ import {
   Columns3,
   LayoutGrid,
   BarChart3,
+  GanttChart,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,6 +38,8 @@ import { KanbanBoard } from "@/components/kanban/KanbanBoard";
 import { KanbanSwimLaneBoard } from "@/components/kanban/KanbanSwimLaneBoard";
 import { KanbanCardData } from "@/components/kanban/KanbanCard";
 import { ProjectDashboard } from "@/components/kanban/ProjectDashboard";
+import { AdvancedFilters, TaskFilters, defaultFilters } from "@/components/tasks/AdvancedFilters";
+import { GanttTimeline } from "@/components/tasks/GanttTimeline";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { EditTaskModal } from "./EditTaskModal";
@@ -59,11 +62,11 @@ const priorityColors = {
   urgent: "bg-destructive/10 text-destructive",
 };
 
-type ViewMode = "list" | "kanban" | "swimlane" | "dashboard";
+type ViewMode = "list" | "kanban" | "swimlane" | "dashboard" | "gantt";
 
 export const TaskManagement = () => {
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [filterStatus, setFilterStatus] = useState<string>("");
+  const [filters, setFilters] = useState<TaskFilters>(defaultFilters);
   const [editingTask, setEditingTask] = useState<ManagedTask | null>(null);
   const [selectedTask, setSelectedTask] = useState<TaskDetailData | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -92,6 +95,10 @@ export const TaskManagement = () => {
   const reassignTask = useReassignTask();
   const insertLog = useInsertActivityLog();
 
+  const allTasksList = useMemo(() => tasks.map(t => ({ id: t.id, title: t.title })), [tasks]);
+
+  const assignees = useMemo(() => teamMembers.map(m => ({ id: m.id, name: m.full_name })), [teamMembers]);
+
   const resetForm = () => {
     setTitle("");
     setDescription("");
@@ -107,7 +114,6 @@ export const TaskManagement = () => {
       toast.error("Task title is required");
       return;
     }
-
     try {
       const result = await createTask.mutateAsync({
         title: title.trim(),
@@ -148,7 +154,6 @@ export const TaskManagement = () => {
 
   const handleDeleteTask = async (taskId: string) => {
     if (!confirm("Are you sure you want to archive this task?")) return;
-
     try {
       await deleteTask.mutateAsync(taskId);
       toast.success("Task archived");
@@ -212,11 +217,27 @@ export const TaskManagement = () => {
     setDrawerOpen(true);
   };
 
-  const filteredTasks = filterStatus
-    ? tasks.filter((t) => t.status === filterStatus)
-    : tasks;
+  const handleGanttTaskClick = (taskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (task) handleTaskClick(task);
+  };
 
-  // Convert ManagedTask[] to KanbanCardData[]
+  const filteredTasks = useMemo(() => {
+    return tasks.filter((t) => {
+      if (filters.status && t.status !== filters.status) return false;
+      if (filters.priority && t.priority !== filters.priority) return false;
+      if (filters.assigneeId && t.assigned_to_id !== filters.assigneeId) return false;
+      if (filters.taskType && t.task_type !== filters.taskType) return false;
+      if (filters.search) {
+        const q = filters.search.toLowerCase();
+        if (!t.title.toLowerCase().includes(q) && !(t.description || "").toLowerCase().includes(q)) return false;
+      }
+      if (filters.dateRange.from && t.due_date && t.due_date < filters.dateRange.from) return false;
+      if (filters.dateRange.to && t.due_date && t.due_date > filters.dateRange.to) return false;
+      return true;
+    });
+  }, [tasks, filters]);
+
   const kanbanTasks: KanbanCardData[] = filteredTasks.map((t) => ({
     id: t.id,
     title: t.title,
@@ -232,22 +253,28 @@ export const TaskManagement = () => {
     task_type: t.task_type,
   }));
 
-  const isLoading = membersLoading || projectsLoading || tasksLoading;
+  const ganttTasks = filteredTasks.map(t => ({
+    id: t.id,
+    title: t.title,
+    start: t.due_date ? new Date(new Date(t.due_date).getTime() - 7 * 24 * 60 * 60 * 1000).toISOString() : null,
+    end: t.due_date,
+    status: t.status,
+    priority: t.priority,
+    progress: t.status === "completed" || t.status === "approved" ? 100
+      : t.status === "review" ? 75
+      : t.status === "in_progress" ? 50
+      : t.status === "blocked" ? 25
+      : 0,
+    dependencies: [],
+  }));
 
-  const statusFilters = [
-    { value: "", label: "All" },
-    { value: "pending", label: "Pending" },
-    { value: "in_progress", label: "In Progress" },
-    { value: "review", label: "Review" },
-    { value: "blocked", label: "Blocked" },
-    { value: "completed", label: "Completed" },
-    { value: "approved", label: "Approved" },
-  ];
+  const isLoading = membersLoading || projectsLoading || tasksLoading;
 
   const viewModes = [
     { value: "list" as ViewMode, icon: LayoutList, label: "List" },
     { value: "kanban" as ViewMode, icon: Columns3, label: "Kanban" },
     { value: "swimlane" as ViewMode, icon: LayoutGrid, label: "Swim Lane" },
+    { value: "gantt" as ViewMode, icon: GanttChart, label: "Gantt" },
     { value: "dashboard" as ViewMode, icon: BarChart3, label: "Dashboard" },
   ];
 
@@ -431,24 +458,14 @@ export const TaskManagement = () => {
         </div>
       )}
 
-      {/* Filter (hidden in dashboard view) */}
+      {/* Advanced Filters (hidden in dashboard view) */}
       {viewMode !== "dashboard" && (
-        <div className="flex gap-2 overflow-x-auto pb-2">
-          {statusFilters.map((filter) => (
-            <button
-              key={filter.value}
-              onClick={() => setFilterStatus(filter.value)}
-              className={cn(
-                "px-4 py-2 rounded-full text-sm font-medium transition-colors whitespace-nowrap",
-                filterStatus === filter.value
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted hover:bg-muted/80"
-              )}
-            >
-              {filter.label}
-            </button>
-          ))}
-        </div>
+        <AdvancedFilters
+          filters={filters}
+          onFiltersChange={setFilters}
+          assignees={assignees}
+          showAssigneeFilter
+        />
       )}
 
       {/* Content */}
@@ -458,6 +475,8 @@ export const TaskManagement = () => {
         </div>
       ) : viewMode === "dashboard" ? (
         <ProjectDashboard tasks={kanbanTasks} />
+      ) : viewMode === "gantt" ? (
+        <GanttTimeline tasks={ganttTasks} onTaskClick={handleGanttTaskClick} />
       ) : viewMode === "kanban" ? (
         <KanbanBoard
           tasks={kanbanTasks}
@@ -477,7 +496,7 @@ export const TaskManagement = () => {
           <Clock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
           <h3 className="font-semibold">No tasks found</h3>
           <p className="text-sm text-muted-foreground mt-1">
-            {filterStatus ? "Try a different filter" : "Create your first task above"}
+            {filters.status || filters.search ? "Try different filters" : "Create your first task above"}
           </p>
         </div>
       ) : (
@@ -591,6 +610,10 @@ export const TaskManagement = () => {
         open={drawerOpen}
         onOpenChange={setDrawerOpen}
         canUploadEvidence={false}
+        canManageTags
+        canManageDependencies
+        canCreateSubtasks
+        allTasks={allTasksList}
       />
     </div>
   );
