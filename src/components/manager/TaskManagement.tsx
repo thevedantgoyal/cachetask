@@ -13,6 +13,10 @@ import {
   Edit,
   RefreshCw,
   ShieldCheck,
+  LayoutList,
+  Columns3,
+  LayoutGrid,
+  BarChart3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,9 +33,14 @@ import {
 import { useInsertActivityLog } from "@/hooks/useTaskActivityLogs";
 import { TaskStatusBadge } from "@/components/tasks/TaskStatusBadge";
 import { TaskDetailDrawer, TaskDetailData } from "@/components/tasks/TaskDetailDrawer";
+import { KanbanBoard } from "@/components/kanban/KanbanBoard";
+import { KanbanSwimLaneBoard } from "@/components/kanban/KanbanSwimLaneBoard";
+import { KanbanCardData } from "@/components/kanban/KanbanCard";
+import { ProjectDashboard } from "@/components/kanban/ProjectDashboard";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { EditTaskModal } from "./EditTaskModal";
+import { cn } from "@/lib/utils";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -50,6 +59,8 @@ const priorityColors = {
   urgent: "bg-destructive/10 text-destructive",
 };
 
+type ViewMode = "list" | "kanban" | "swimlane" | "dashboard";
+
 export const TaskManagement = () => {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>("");
@@ -59,6 +70,8 @@ export const TaskManagement = () => {
   const [reassignTaskId, setReassignTaskId] = useState<string | null>(null);
   const [reassignTo, setReassignTo] = useState("");
   const [reassignReason, setReassignReason] = useState("");
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [swimLaneGroupBy, setSwimLaneGroupBy] = useState<"assignee" | "project">("assignee");
   
   // Form state
   const [title, setTitle] = useState("");
@@ -104,7 +117,6 @@ export const TaskManagement = () => {
         priority,
         dueDate: dueDate || undefined,
       });
-      // Log creation
       if (result?.id) {
         insertLog.mutateAsync({
           taskId: result.id,
@@ -183,7 +195,7 @@ export const TaskManagement = () => {
     }
   };
 
-  const handleTaskClick = (task: ManagedTask) => {
+  const handleTaskClick = (task: ManagedTask | KanbanCardData) => {
     setSelectedTask({
       id: task.id,
       title: task.title,
@@ -192,10 +204,10 @@ export const TaskManagement = () => {
       priority: task.priority,
       due_date: task.due_date,
       project_name: task.project_name,
-      assigned_to_name: task.assigned_to_name,
-      reassignment_count: task.reassignment_count,
-      blocked_reason: task.blocked_reason,
-      task_type: task.task_type,
+      assigned_to_name: task.assigned_to_name || null,
+      reassignment_count: (task as any).reassignment_count || 0,
+      blocked_reason: (task as any).blocked_reason || null,
+      task_type: (task as any).task_type || null,
     });
     setDrawerOpen(true);
   };
@@ -203,6 +215,22 @@ export const TaskManagement = () => {
   const filteredTasks = filterStatus
     ? tasks.filter((t) => t.status === filterStatus)
     : tasks;
+
+  // Convert ManagedTask[] to KanbanCardData[]
+  const kanbanTasks: KanbanCardData[] = filteredTasks.map((t) => ({
+    id: t.id,
+    title: t.title,
+    description: t.description,
+    status: t.status,
+    priority: t.priority,
+    due_date: t.due_date,
+    project_name: t.project_name,
+    assigned_to_name: t.assigned_to_name,
+    assigned_to_id: t.assigned_to_id,
+    reassignment_count: t.reassignment_count,
+    blocked_reason: t.blocked_reason,
+    task_type: t.task_type,
+  }));
 
   const isLoading = membersLoading || projectsLoading || tasksLoading;
 
@@ -214,6 +242,13 @@ export const TaskManagement = () => {
     { value: "blocked", label: "Blocked" },
     { value: "completed", label: "Completed" },
     { value: "approved", label: "Approved" },
+  ];
+
+  const viewModes = [
+    { value: "list" as ViewMode, icon: LayoutList, label: "List" },
+    { value: "kanban" as ViewMode, icon: Columns3, label: "Kanban" },
+    { value: "swimlane" as ViewMode, icon: LayoutGrid, label: "Swim Lane" },
+    { value: "dashboard" as ViewMode, icon: BarChart3, label: "Dashboard" },
   ];
 
   return (
@@ -229,6 +264,28 @@ export const TaskManagement = () => {
           <Plus className="w-4 h-4" />
           Create Task
         </Button>
+      </div>
+
+      {/* View Mode Toggle */}
+      <div className="flex items-center gap-1 bg-muted/50 rounded-xl p-1">
+        {viewModes.map((mode) => {
+          const Icon = mode.icon;
+          return (
+            <button
+              key={mode.value}
+              onClick={() => setViewMode(mode.value)}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all flex-1 justify-center",
+                viewMode === mode.value
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{mode.label}</span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Create Task Form */}
@@ -374,28 +431,47 @@ export const TaskManagement = () => {
         </div>
       )}
 
-      {/* Filter */}
-      <div className="flex gap-2 overflow-x-auto pb-2">
-        {statusFilters.map((filter) => (
-          <button
-            key={filter.value}
-            onClick={() => setFilterStatus(filter.value)}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors whitespace-nowrap ${
-              filterStatus === filter.value
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted hover:bg-muted/80"
-            }`}
-          >
-            {filter.label}
-          </button>
-        ))}
-      </div>
+      {/* Filter (hidden in dashboard view) */}
+      {viewMode !== "dashboard" && (
+        <div className="flex gap-2 overflow-x-auto pb-2">
+          {statusFilters.map((filter) => (
+            <button
+              key={filter.value}
+              onClick={() => setFilterStatus(filter.value)}
+              className={cn(
+                "px-4 py-2 rounded-full text-sm font-medium transition-colors whitespace-nowrap",
+                filterStatus === filter.value
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted hover:bg-muted/80"
+              )}
+            >
+              {filter.label}
+            </button>
+          ))}
+        </div>
+      )}
 
-      {/* Task List */}
+      {/* Content */}
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
         </div>
+      ) : viewMode === "dashboard" ? (
+        <ProjectDashboard tasks={kanbanTasks} />
+      ) : viewMode === "kanban" ? (
+        <KanbanBoard
+          tasks={kanbanTasks}
+          onTaskClick={(task) => handleTaskClick(task as any)}
+          onStatusChange={handleStatusChange}
+        />
+      ) : viewMode === "swimlane" ? (
+        <KanbanSwimLaneBoard
+          tasks={kanbanTasks}
+          onTaskClick={(task) => handleTaskClick(task as any)}
+          onStatusChange={handleStatusChange}
+          groupBy={swimLaneGroupBy}
+          onGroupByChange={setSwimLaneGroupBy}
+        />
       ) : filteredTasks.length === 0 ? (
         <div className="text-center py-12 bg-muted/30 rounded-2xl">
           <Clock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
@@ -422,7 +498,7 @@ export const TaskManagement = () => {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <TaskStatusBadge status={task.status} />
-                    <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${priorityColors[task.priority as keyof typeof priorityColors] || priorityColors.medium}`}>
+                    <span className={cn("text-xs px-2 py-0.5 rounded-full capitalize", priorityColors[task.priority as keyof typeof priorityColors] || priorityColors.medium)}>
                       {task.priority}
                     </span>
                     {(task.reassignment_count || 0) > 0 && (
@@ -432,7 +508,7 @@ export const TaskManagement = () => {
                     )}
                   </div>
 
-                  <h4 className={`font-medium ${task.status === "completed" || task.status === "approved" ? "line-through text-muted-foreground" : ""}`}>
+                  <h4 className={cn("font-medium", (task.status === "completed" || task.status === "approved") && "line-through text-muted-foreground")}>
                     {task.title}
                   </h4>
 

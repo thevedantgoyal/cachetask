@@ -1,12 +1,15 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Loader2, ClipboardList } from "lucide-react";
+import { Loader2, ClipboardList, LayoutList, Columns3 } from "lucide-react";
 import { TaskCard } from "@/components/cards/TaskCard";
 import { useTasks, formatDueLabel } from "@/hooks/useTasks";
 import { TaskDetailDrawer, TaskDetailData } from "@/components/tasks/TaskDetailDrawer";
+import { KanbanBoard } from "@/components/kanban/KanbanBoard";
+import { KanbanCardData } from "@/components/kanban/KanbanCard";
 import { useUpdateTaskStatus } from "@/hooks/useTaskManagement";
 import { useInsertActivityLog } from "@/hooks/useTaskActivityLogs";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -35,6 +38,8 @@ const priorityFilters = [
   { value: "low", label: "Low" },
 ];
 
+type ViewMode = "list" | "kanban";
+
 const TasksPage = () => {
   const { data: tasks, isLoading, error } = useTasks();
   const [filterStatus, setFilterStatus] = useState<string>("");
@@ -43,6 +48,7 @@ const TasksPage = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [blockedReason, setBlockedReason] = useState("");
   const [showBlockedPrompt, setShowBlockedPrompt] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
 
   const updateStatus = useUpdateTaskStatus();
   const insertLog = useInsertActivityLog();
@@ -54,6 +60,22 @@ const TasksPage = () => {
   });
 
   const handleTaskClick = (task: typeof tasks extends (infer T)[] | undefined ? T : never) => {
+    setSelectedTask({
+      id: task.id,
+      title: task.title,
+      description: task.description,
+      status: task.status,
+      priority: task.priority,
+      due_date: task.due_date,
+      project_name: task.project_name,
+      reassignment_count: task.reassignment_count,
+      blocked_reason: task.blocked_reason,
+      task_type: task.task_type,
+    });
+    setDrawerOpen(true);
+  };
+
+  const handleKanbanTaskClick = (task: KanbanCardData) => {
     setSelectedTask({
       id: task.id,
       title: task.title,
@@ -112,23 +134,61 @@ const TasksPage = () => {
     }
   };
 
+  // Convert for Kanban
+  const kanbanTasks: KanbanCardData[] = (filteredTasks || []).map((t) => ({
+    id: t.id,
+    title: t.title,
+    description: t.description,
+    status: t.status,
+    priority: t.priority,
+    due_date: t.due_date,
+    project_name: t.project_name,
+    reassignment_count: t.reassignment_count,
+    blocked_reason: t.blocked_reason,
+    task_type: t.task_type,
+  }));
+
   return (
     <>
-      {/* Status Filter Pills */}
-      <div className="flex gap-2 mb-2 overflow-x-auto pb-1 scrollbar-hide">
-        {statusFilters.map((filter) => (
+      {/* View Toggle + Status Filters */}
+      <div className="flex items-center gap-2 mb-2">
+        <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-0.5">
           <button
-            key={filter.value}
-            onClick={() => setFilterStatus(filter.value)}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors whitespace-nowrap ${
-              filterStatus === filter.value
-                ? "bg-primary text-primary-foreground"
-                : "bg-card hover:bg-muted border border-border"
-            }`}
+            onClick={() => setViewMode("list")}
+            className={cn(
+              "p-2 rounded-md transition-all",
+              viewMode === "list" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+            )}
           >
-            {filter.label}
+            <LayoutList className="w-4 h-4" />
           </button>
-        ))}
+          <button
+            onClick={() => setViewMode("kanban")}
+            className={cn(
+              "p-2 rounded-md transition-all",
+              viewMode === "kanban" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Columns3 className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide flex-1">
+          {statusFilters.map((filter) => (
+            <button
+              key={filter.value}
+              onClick={() => setFilterStatus(filter.value)}
+              className={cn(
+                "px-4 py-2 rounded-full text-sm font-medium transition-colors whitespace-nowrap",
+                filterStatus === filter.value
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-card hover:bg-muted border border-border"
+              )}
+            >
+              {filter.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Priority Filter Pills */}
@@ -137,11 +197,12 @@ const TasksPage = () => {
           <button
             key={`p-${filter.value}`}
             onClick={() => setFilterPriority(filter.value)}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${
+            className={cn(
+              "px-3 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap",
               filterPriority === filter.value
                 ? "bg-secondary text-secondary-foreground"
                 : "bg-card hover:bg-muted border border-border"
-            }`}
+            )}
           >
             {filter.label}
           </button>
@@ -182,6 +243,13 @@ const TasksPage = () => {
         </div>
       ) : error ? (
         <div className="text-center py-12 text-destructive">Failed to load tasks</div>
+      ) : viewMode === "kanban" ? (
+        <KanbanBoard
+          tasks={kanbanTasks}
+          onTaskClick={handleKanbanTaskClick}
+          onStatusChange={handleStatusUpdate}
+          visibleStatuses={["pending", "in_progress", "review", "blocked", "completed"]}
+        />
       ) : filteredTasks && filteredTasks.length > 0 ? (
         <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-3">
           {filteredTasks.map((task, index) => (
