@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate, Navigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Eye, EyeOff, Mail, Lock, User } from "lucide-react";
+import { ConnectPlusLoader } from "@/components/ui/ConnectPlusLoader";
 import { z } from "zod";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -231,7 +232,7 @@ const AuthPage = () => {
               disabled={isSubmitting}
               className="w-full py-6 text-base font-semibold rounded-xl"
             >
-              {isSubmitting ? "Please wait..." : isLogin ? "Sign In" : "Create Account"}
+              {isSubmitting ? <ConnectPlusLoader variant="button" message={isLogin ? "Signing in..." : "Creating account..."} /> : isLogin ? "Sign In" : "Create Account"}
             </Button>
           </div>
         </motion.form>

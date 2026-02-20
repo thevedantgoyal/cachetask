@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRoles } from "@/hooks/useUserRoles";
+import { ConnectPlusLoader } from "@/components/ui/ConnectPlusLoader";
 
 interface OrganizationRouteProps {
   children: ReactNode;
@@ -12,11 +13,7 @@ export const OrganizationRoute = ({ children }: OrganizationRouteProps) => {
   const { isOrganization, loading: rolesLoading } = useUserRoles();
 
   if (authLoading || rolesLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-      </div>
-    );
+    return <ConnectPlusLoader variant="fullscreen" />;
   }
 
   if (!user) {

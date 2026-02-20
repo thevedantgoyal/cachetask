@@ -2,6 +2,7 @@ import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { ConnectPlusLoader } from "@/components/ui/ConnectPlusLoader";
 
 interface AdminRouteProps {
   children: React.ReactNode;
@@ -47,11 +48,7 @@ export const AdminRoute = ({ children }: AdminRouteProps) => {
   }, [user, loading]);
 
   if (loading || checkingRole) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-pulse text-muted-foreground">Checking permissions...</div>
-      </div>
-    );
+    return <ConnectPlusLoader variant="fullscreen" message="Checking permissions..." />;
   }
 
   if (!user) {

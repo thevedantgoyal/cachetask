@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   Home, ListTodo, History, BarChart3, User, Shield, Users,
@@ -7,6 +8,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { ConnectPlusLoader } from "@/components/ui/ConnectPlusLoader";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -85,6 +87,7 @@ export const NavigationDrawer = ({ open, onOpenChange }: NavigationDrawerProps) 
   const navigate = useNavigate();
   const { signOut } = useAuth();
   const { roles, loading: rolesLoading } = useUserRoles();
+  const [signingOut, setSigningOut] = useState(false);
 
   const handleNavClick = (path: string) => {
     navigate(path);
@@ -93,8 +96,13 @@ export const NavigationDrawer = ({ open, onOpenChange }: NavigationDrawerProps) 
 
   const handleSignOut = async () => {
     onOpenChange(false);
+    setSigningOut(true);
     await signOut();
   };
+
+  if (signingOut) {
+    return <ConnectPlusLoader variant="fullscreen" message="Signing out..." />;
+  }
 
   const isVisible = (item: NavItem) => {
     if (!item.roles || item.roles.length === 0) return true;
