@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Loader2, ClipboardList, LayoutList, Columns3, GanttChart } from "lucide-react";
+import { ClipboardList, LayoutList, Columns3, GanttChart } from "lucide-react";
+import { ConnectPlusLoader } from "@/components/ui/ConnectPlusLoader";
 import { TaskCard } from "@/components/cards/TaskCard";
 import { useTasks, formatDueLabel } from "@/hooks/useTasks";
 import { TaskDetailDrawer, TaskDetailData } from "@/components/tasks/TaskDetailDrawer";
@@ -229,9 +230,7 @@ const TasksPage = () => {
       )}
 
       {isLoading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-        </div>
+        <ConnectPlusLoader variant="inline" message="Loading tasks..." />
       ) : error ? (
         <div className="text-center py-12 text-destructive">Failed to load tasks</div>
       ) : viewMode === "gantt" ? (

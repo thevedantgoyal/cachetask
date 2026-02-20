@@ -4,6 +4,7 @@ import {
   Mail, Phone, Link as LinkIcon, ExternalLink, ChevronRight,
   MapPin, Building2, Briefcase
 } from "lucide-react";
+import { ConnectPlusLoader } from "@/components/ui/ConnectPlusLoader";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { PushNotificationToggle } from "@/components/notifications/PushNotificationToggle";
@@ -74,11 +75,7 @@ const ProfilePage = () => {
   }, [user]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-pulse text-muted-foreground">Loading profile...</div>
-      </div>
-    );
+    return <ConnectPlusLoader variant="inline" message="Loading profile..." />;
   }
 
   return (

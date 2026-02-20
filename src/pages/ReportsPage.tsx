@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
+import { ConnectPlusLoader } from "@/components/ui/ConnectPlusLoader";
 
 interface RoleStats {
   role: string;
@@ -284,11 +285,7 @@ const ReportsPage = () => {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-      </div>
-    );
+    return <ConnectPlusLoader variant="inline" message="Loading reports..." />;
   }
 
   return (

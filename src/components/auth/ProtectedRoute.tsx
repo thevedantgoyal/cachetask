@@ -1,5 +1,6 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { ConnectPlusLoader } from "@/components/ui/ConnectPlusLoader";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -10,11 +11,7 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const location = useLocation();
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-pulse text-muted-foreground">Loading...</div>
-      </div>
-    );
+    return <ConnectPlusLoader variant="fullscreen" />;
   }
 
   if (!user) {
