@@ -83,10 +83,18 @@ const Index = () => {
             </>
           ) : (
             <>
-              <MetricCard label="Active Tasks" value={stats?.totalTasks || 0} maxValue={10} icon={ListTodo} showInfo={false} />
-              <MetricCard label="Done Today" value={stats?.completedToday || 0} maxValue={5} icon={CheckCircle} variant="success" showInfo={false} />
-              <MetricCard label="Pending" value={stats?.pendingContributions || 0} maxValue={10} icon={Clock} variant="warning" showInfo={false} />
-              <MetricCard label="Approved" value={stats?.approvedContributions || 0} maxValue={20} icon={TrendingUp} variant="success" showInfo={false} />
+              <Link to="/tasks?status=in_progress">
+                <MetricCard label="Active Tasks" value={stats?.totalTasks || 0} maxValue={10} icon={ListTodo} showInfo={false} />
+              </Link>
+              <Link to="/tasks?status=completed">
+                <MetricCard label="Done Today" value={stats?.completedToday || 0} maxValue={5} icon={CheckCircle} variant="success" showInfo={false} />
+              </Link>
+              <Link to="/tasks?status=pending">
+                <MetricCard label="Pending" value={stats?.pendingContributions || 0} maxValue={10} icon={Clock} variant="warning" showInfo={false} />
+              </Link>
+              <Link to="/tasks?status=approved">
+                <MetricCard label="Approved" value={stats?.approvedContributions || 0} maxValue={20} icon={TrendingUp} variant="success" showInfo={false} />
+              </Link>
             </>
           )}
         </motion.div>
@@ -126,12 +134,14 @@ const Index = () => {
             <div className="space-y-3">
               {tasks.map((task, index) => (
                 <motion.div key={task.id} variants={itemVariants} transition={{ delay: index * 0.1 }}>
-                  <TaskCard
-                    title={task.title}
-                    description={task.description || undefined}
-                    project={task.project_name || "No Project"}
-                    dueLabel={formatDueLabel(task.due_date)}
-                  />
+                  <Link to={`/tasks/${task.id}`}>
+                    <TaskCard
+                      title={task.title}
+                      description={task.description || undefined}
+                      project={task.project_name || "No Project"}
+                      dueLabel={formatDueLabel(task.due_date)}
+                    />
+                  </Link>
                 </motion.div>
               ))}
             </div>
