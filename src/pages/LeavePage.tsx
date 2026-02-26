@@ -5,10 +5,15 @@ import { useLeaveManagement } from "@/hooks/useLeaveManagement";
 import { LeaveBalanceCards } from "@/components/leave/LeaveBalanceCards";
 import { ApplyLeaveForm } from "@/components/leave/ApplyLeaveForm";
 import { LeaveHistory } from "@/components/leave/LeaveHistory";
+import { LeaveRequests } from "@/components/leave/LeaveRequests";
+import { useLeaveRequestsAccess } from "@/hooks/useLeaveRequests";
 
 const LeavePage = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
   const leave = useLeaveManagement();
+  const { canView: canViewRequests, loading: accessLoading } = useLeaveRequestsAccess();
+
+  const showRequestsTab = !accessLoading && canViewRequests;
 
   return (
     <AnimatePresence mode="wait">
@@ -28,9 +33,12 @@ const LeavePage = () => {
       ) : (
         <motion.div key="dashboard" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="w-full grid grid-cols-2">
+            <TabsList className={`w-full grid ${showRequestsTab ? "grid-cols-3" : "grid-cols-2"}`}>
               <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
               <TabsTrigger value="history">History</TabsTrigger>
+              {showRequestsTab && (
+                <TabsTrigger value="requests">Leave Requests</TabsTrigger>
+              )}
             </TabsList>
             <TabsContent value="dashboard" className="space-y-6">
               <LeaveBalanceCards balances={leave.balances} onApplyLeave={() => leave.setIsApplying(true)} />
@@ -38,6 +46,11 @@ const LeavePage = () => {
             <TabsContent value="history">
               <LeaveHistory requests={leave.leaveRequests} />
             </TabsContent>
+            {showRequestsTab && (
+              <TabsContent value="requests">
+                <LeaveRequests />
+              </TabsContent>
+            )}
           </Tabs>
         </motion.div>
       )}
