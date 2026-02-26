@@ -24,8 +24,8 @@ const AttendancePage = () => {
   const showVerificationFlow = currentStep !== "disclaimer" && !todayMarked && activeFlowType === "checkin";
   const showCheckOutFlow = currentStep !== "disclaimer" && activeFlowType === "checkout" && !todayCheckedOut;
 
-  const handleConfirmAttendance = () => { confirmAttendance(); resetFlow(); };
-  const handleConfirmCheckOut = () => { confirmCheckOut(); resetFlow(); };
+  const handleConfirmAttendance = async () => { await confirmAttendance(); resetFlow(); };
+  const handleConfirmCheckOut = async () => { await confirmCheckOut(); resetFlow(); };
 
   const isInVerificationFlow = showVerificationFlow || showCheckOutFlow;
 
