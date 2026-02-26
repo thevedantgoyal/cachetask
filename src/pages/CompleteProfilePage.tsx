@@ -79,16 +79,23 @@ const CompleteProfilePage = () => {
   };
 
   const handleSubmit = async () => {
+    // Validate required fields
+    if (!phone.trim()) { toast.error("Phone number is required"); return; }
+    if (!bio.trim()) { toast.error("Short bio is required"); return; }
+    if (skills.length === 0) { toast.error("Please add at least one skill"); return; }
+    if (!joiningDate) { toast.error("Joining date is required"); return; }
+    if (!avatarUrl) { toast.error("Profile picture is required"); return; }
+
     setSubmitting(true);
     try {
       await completeProfile.mutateAsync({
-        phone: phone || undefined,
-        bio: bio || undefined,
+        phone,
+        bio,
         linkedin_url: linkedinUrl || undefined,
-        joining_date: joiningDate || undefined,
-        avatar_url: avatarUrl || undefined,
+        joining_date: joiningDate,
+        avatar_url: avatarUrl,
         resume_url: resumeUrl || undefined,
-      other_social_links: { ...socialLinks, skills: skills.join(",") },
+        other_social_links: { ...socialLinks, skills: skills.join(",") },
       });
       navigate("/", { replace: true });
     } catch {
@@ -109,7 +116,7 @@ const CompleteProfilePage = () => {
       <main className="max-w-lg mx-auto px-4 py-6 space-y-6">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
           <p className="text-muted-foreground text-sm text-center mb-6">
-            Set up your profile to get the most out of CacheTask. You can always update these later.
+            Complete all required fields (<span className="text-destructive">*</span>) to get started with CacheTask.
           </p>
         </motion.div>
 
@@ -135,7 +142,7 @@ const CompleteProfilePage = () => {
             )}
           </div>
           <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
-          <p className="text-xs text-muted-foreground">Tap to upload profile picture</p>
+          <p className="text-xs text-muted-foreground">Tap to upload profile picture <span className="text-destructive">*</span></p>
         </motion.div>
 
         {/* Email (read-only) */}
@@ -149,7 +156,7 @@ const CompleteProfilePage = () => {
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}
           className="space-y-2">
           <Label className="text-sm font-medium flex items-center gap-1.5">
-            <Phone className="w-3.5 h-3.5" /> Phone Number
+            <Phone className="w-3.5 h-3.5" /> Phone Number <span className="text-destructive">*</span>
           </Label>
           <Input placeholder="+1 234 567 8900" value={phone} onChange={(e) => setPhone(e.target.value)} />
         </motion.div>
@@ -158,7 +165,7 @@ const CompleteProfilePage = () => {
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.14 }}
           className="space-y-2">
           <Label className="text-sm font-medium flex items-center gap-1.5">
-            <AlignLeft className="w-3.5 h-3.5" /> Short Bio
+            <AlignLeft className="w-3.5 h-3.5" /> Short Bio <span className="text-destructive">*</span>
           </Label>
           <Textarea
             placeholder="Tell your team a bit about yourself..."
@@ -173,7 +180,7 @@ const CompleteProfilePage = () => {
         {/* Skills */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.16 }}
           className="space-y-2">
-          <Label className="text-sm font-medium">Skills</Label>
+          <Label className="text-sm font-medium">Skills <span className="text-destructive">*</span></Label>
           <div className="flex gap-2">
             <Input
               placeholder="Add a skill..."
@@ -211,7 +218,7 @@ const CompleteProfilePage = () => {
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}
           className="space-y-2">
           <Label className="text-sm font-medium flex items-center gap-1.5">
-            <Calendar className="w-3.5 h-3.5" /> Joining Date
+            <Calendar className="w-3.5 h-3.5" /> Joining Date <span className="text-destructive">*</span>
           </Label>
           <Input type="date" value={joiningDate} onChange={(e) => setJoiningDate(e.target.value)} />
         </motion.div>
@@ -258,12 +265,6 @@ const CompleteProfilePage = () => {
             {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
             Complete Profile
           </Button>
-          <button
-            onClick={() => { completeProfile.mutate({}); navigate("/", { replace: true }); }}
-            className="w-full text-center text-sm text-muted-foreground mt-3 hover:text-foreground transition-colors"
-          >
-            Skip for now
-          </button>
         </motion.div>
       </main>
     </div>
