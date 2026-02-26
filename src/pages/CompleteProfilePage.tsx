@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
   Camera,
@@ -41,6 +42,7 @@ const SKILL_SUGGESTIONS = [
 ];
 
 const CompleteProfilePage = () => {
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { data: profile } = useExtendedProfile();
   const completeProfile = useCompleteProfile();
@@ -132,6 +134,9 @@ const CompleteProfilePage = () => {
         resume_url: resumeUrl || undefined,
         other_social_links: { ...socialLinks, skills: skills.join(",") },
       });
+      // Wait for the profile query cache to update before navigating
+      await queryClient.invalidateQueries({ queryKey: ["extended-profile"] });
+      await queryClient.refetchQueries({ queryKey: ["extended-profile"] });
       navigate("/", { replace: true });
     } catch {
       // Error handled by mutation
