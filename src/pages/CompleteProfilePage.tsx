@@ -2,8 +2,17 @@ import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
-  Camera, Phone, FileText, LinkIcon, Calendar, AlignLeft,
-  Upload, Loader2, CheckCircle2, Plus, X,
+  Camera,
+  Phone,
+  FileText,
+  LinkIcon,
+  Calendar,
+  AlignLeft,
+  Upload,
+  Loader2,
+  CheckCircle2,
+  Plus,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,9 +24,20 @@ import { useExtendedProfile } from "@/hooks/useProfileManagement";
 import { toast } from "sonner";
 
 const SKILL_SUGGESTIONS = [
-  "JavaScript", "TypeScript", "React", "Node.js", "Python", "SQL",
-  "Project Management", "Data Analysis", "UI/UX Design", "DevOps",
-  "Communication", "Leadership", "Problem Solving", "Agile",
+  "JavaScript",
+  "TypeScript",
+  "React",
+  "Node.js",
+  "Python",
+  "SQL",
+  "Project Management",
+  "Data Analysis",
+  "UI/UX Design",
+  "DevOps",
+  "Communication",
+  "Leadership",
+  "Problem Solving",
+  "Agile",
 ];
 
 const CompleteProfilePage = () => {
@@ -80,11 +100,26 @@ const CompleteProfilePage = () => {
 
   const handleSubmit = async () => {
     // Validate required fields
-    if (!phone.trim()) { toast.error("Phone number is required"); return; }
-    if (!bio.trim()) { toast.error("Short bio is required"); return; }
-    if (skills.length === 0) { toast.error("Please add at least one skill"); return; }
-    if (!joiningDate) { toast.error("Joining date is required"); return; }
-    if (!avatarUrl) { toast.error("Profile picture is required"); return; }
+    if (!phone.trim()) {
+      toast.error("Phone number is required");
+      return;
+    }
+    if (!bio.trim()) {
+      toast.error("Short bio is required");
+      return;
+    }
+    if (skills.length === 0) {
+      toast.error("Please add at least one skill");
+      return;
+    }
+    if (!joiningDate) {
+      toast.error("Joining date is required");
+      return;
+    }
+    if (!avatarUrl) {
+      toast.error("Profile picture is required");
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -121,8 +156,12 @@ const CompleteProfilePage = () => {
         </motion.div>
 
         {/* Avatar */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
-          className="flex flex-col items-center gap-3">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+          className="flex flex-col items-center gap-3"
+        >
           <div
             className="relative w-24 h-24 rounded-full overflow-hidden bg-accent ring-4 ring-background shadow-elevated cursor-pointer"
             onClick={() => avatarInputRef.current?.click()}
@@ -142,19 +181,29 @@ const CompleteProfilePage = () => {
             )}
           </div>
           <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
-          <p className="text-xs text-muted-foreground">Tap to upload profile picture <span className="text-destructive">*</span></p>
+          <p className="text-xs text-muted-foreground">
+            Tap to upload profile picture <span className="text-destructive">*</span>
+          </p>
         </motion.div>
 
         {/* Email (read-only) */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-          className="space-y-2">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="space-y-2"
+        >
           <Label className="text-sm font-medium">Email</Label>
           <Input value={profile?.email || ""} disabled className="bg-muted" />
         </motion.div>
 
         {/* Phone */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}
-          className="space-y-2">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.12 }}
+          className="space-y-2"
+        >
           <Label className="text-sm font-medium flex items-center gap-1.5">
             <Phone className="w-3.5 h-3.5" /> Phone Number <span className="text-destructive">*</span>
           </Label>
@@ -162,8 +211,12 @@ const CompleteProfilePage = () => {
         </motion.div>
 
         {/* Bio */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.14 }}
-          className="space-y-2">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.14 }}
+          className="space-y-2"
+        >
           <Label className="text-sm font-medium flex items-center gap-1.5">
             <AlignLeft className="w-3.5 h-3.5" /> Short Bio <span className="text-destructive">*</span>
           </Label>
@@ -178,17 +231,34 @@ const CompleteProfilePage = () => {
         </motion.div>
 
         {/* Skills */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.16 }}
-          className="space-y-2">
-          <Label className="text-sm font-medium">Skills <span className="text-destructive">*</span></Label>
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.16 }}
+          className="space-y-2"
+        >
+          <Label className="text-sm font-medium">
+            Skills <span className="text-destructive">*</span>
+          </Label>
           <div className="flex gap-2">
             <Input
               placeholder="Add a skill..."
               value={skillInput}
               onChange={(e) => setSkillInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addSkill(skillInput); } }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addSkill(skillInput);
+                }
+              }}
             />
-            <Button type="button" size="icon" variant="outline" onClick={() => addSkill(skillInput)} disabled={!skillInput.trim()}>
+            <Button
+              type="button"
+              size="icon"
+              variant="outline"
+              onClick={() => addSkill(skillInput)}
+              disabled={!skillInput.trim()}
+            >
               <Plus className="w-4 h-4" />
             </Button>
           </div>
@@ -205,18 +275,27 @@ const CompleteProfilePage = () => {
             </div>
           )}
           <div className="flex flex-wrap gap-1.5 mt-1">
-            {SKILL_SUGGESTIONS.filter((s) => !skills.includes(s)).slice(0, 8).map((s) => (
-              <button key={s} onClick={() => addSkill(s)}
-                className="text-xs px-2 py-0.5 rounded-full border border-border text-muted-foreground hover:bg-accent transition-colors">
-                + {s}
-              </button>
-            ))}
+            {SKILL_SUGGESTIONS.filter((s) => !skills.includes(s))
+              .slice(0, 8)
+              .map((s) => (
+                <button
+                  key={s}
+                  onClick={() => addSkill(s)}
+                  className="text-xs px-2 py-0.5 rounded-full border border-border text-muted-foreground hover:bg-accent transition-colors"
+                >
+                  + {s}
+                </button>
+              ))}
           </div>
         </motion.div>
 
         {/* Joining Date */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}
-          className="space-y-2">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.18 }}
+          className="space-y-2"
+        >
           <Label className="text-sm font-medium flex items-center gap-1.5">
             <Calendar className="w-3.5 h-3.5" /> Joining Date <span className="text-destructive">*</span>
           </Label>
@@ -224,18 +303,29 @@ const CompleteProfilePage = () => {
         </motion.div>
 
         {/* LinkedIn */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-          className="space-y-2">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="space-y-2"
+        >
           <Label className="text-sm font-medium flex items-center gap-1.5">
             <LinkIcon className="w-3.5 h-3.5" /> LinkedIn URL
           </Label>
-          <Input placeholder="https://linkedin.com/in/yourprofile" value={linkedinUrl}
-            onChange={(e) => setLinkedinUrl(e.target.value)} />
+          <Input
+            placeholder="https://linkedin.com/in/yourprofile"
+            value={linkedinUrl}
+            onChange={(e) => setLinkedinUrl(e.target.value)}
+          />
         </motion.div>
 
         {/* Resume */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.22 }}
-          className="space-y-2">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.22 }}
+          className="space-y-2"
+        >
           <Label className="text-sm font-medium flex items-center gap-1.5">
             <FileText className="w-3.5 h-3.5" /> Resume
           </Label>
@@ -255,12 +345,22 @@ const CompleteProfilePage = () => {
               </>
             )}
           </div>
-          <input ref={resumeInputRef} type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={handleResumeUpload} />
+          <input
+            ref={resumeInputRef}
+            type="file"
+            accept=".pdf,.doc,.docx"
+            className="hidden"
+            onChange={handleResumeUpload}
+          />
         </motion.div>
 
         {/* Submit */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.28 }}
-          className="pt-4 pb-8">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.28 }}
+          className="pt-4 pb-8"
+        >
           <Button className="w-full" size="lg" onClick={handleSubmit} disabled={submitting || uploading}>
             {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
             Complete Profile
