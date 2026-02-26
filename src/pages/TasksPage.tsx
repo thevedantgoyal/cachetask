@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ClipboardList, LayoutList, Columns3, GanttChart, Folder, ListTodo } from "lucide-react";
 import { ConnectPlusLoader } from "@/components/ui/ConnectPlusLoader";
@@ -30,8 +31,16 @@ type ViewMode = "list" | "kanban" | "gantt";
 type TaskTypeFilter = "all" | "project" | "separate";
 
 const TasksPage = () => {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { data: tasks, isLoading, error } = useTasks();
-  const [filters, setFilters] = useState<TaskFilters>(defaultFilters);
+  const [filters, setFilters] = useState<TaskFilters>(() => {
+    const statusParam = searchParams.get("status");
+    if (statusParam) {
+      return { ...defaultFilters, status: statusParam };
+    }
+    return defaultFilters;
+  });
   const [selectedTask, setSelectedTask] = useState<TaskDetailData | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [blockedReason, setBlockedReason] = useState("");
@@ -76,41 +85,16 @@ const TasksPage = () => {
 
   const allTasksList = useMemo(() => (tasks || []).map(t => ({ id: t.id, title: t.title })), [tasks]);
 
-  const handleTaskClick = (task: typeof tasks extends (infer T)[] | undefined ? T : never) => {
-    setSelectedTask({
-      id: task.id,
-      title: task.title,
-      description: task.description,
-      status: task.status,
-      priority: task.priority,
-      due_date: task.due_date,
-      project_name: task.project_name,
-      reassignment_count: task.reassignment_count,
-      blocked_reason: task.blocked_reason,
-      task_type: task.task_type,
-    });
-    setDrawerOpen(true);
+  const handleTaskClick = (task: { id: string }) => {
+    navigate(`/tasks/${task.id}`);
   };
 
   const handleKanbanTaskClick = (task: KanbanCardData) => {
-    setSelectedTask({
-      id: task.id,
-      title: task.title,
-      description: task.description,
-      status: task.status,
-      priority: task.priority,
-      due_date: task.due_date,
-      project_name: task.project_name,
-      reassignment_count: task.reassignment_count,
-      blocked_reason: task.blocked_reason,
-      task_type: task.task_type,
-    });
-    setDrawerOpen(true);
+    navigate(`/tasks/${task.id}`);
   };
 
   const handleGanttTaskClick = (taskId: string) => {
-    const task = tasks?.find(t => t.id === taskId);
-    if (task) handleTaskClick(task);
+    navigate(`/tasks/${taskId}`);
   };
 
   const handleStatusUpdate = async (taskId: string, oldStatus: string | null, newStatus: string) => {

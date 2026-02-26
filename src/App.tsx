@@ -29,6 +29,7 @@ import RoomBookingPage from "./pages/RoomBookingPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import EmployeeProjectsPage from "./pages/EmployeeProjectsPage";
 import CompleteProfilePage from "./pages/CompleteProfilePage";
+import TaskDetailPage from "./pages/TaskDetailPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -60,6 +61,7 @@ const App = () => {
               <Route path="/install" element={<InstallPage />} />
               <Route path="/" element={<ProtectedWithLayout><Index /></ProtectedWithLayout>} />
               <Route path="/tasks" element={<ProtectedWithLayout><TasksPage /></ProtectedWithLayout>} />
+              <Route path="/tasks/:id" element={<ProtectedWithLayout><TaskDetailPage /></ProtectedWithLayout>} />
               <Route path="/history" element={<ProtectedWithLayout><HistoryPage /></ProtectedWithLayout>} />
               <Route path="/performance" element={<ProtectedWithLayout><PerformancePage /></ProtectedWithLayout>} />
               <Route path="/profile" element={<ProtectedWithLayout><ProfilePage /></ProtectedWithLayout>} />
