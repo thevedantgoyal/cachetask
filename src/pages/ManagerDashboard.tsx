@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { 
   CheckCircle, XCircle, Clock, User, FileText, ExternalLink,
-  Loader2, ClipboardList, CheckSquare, Folder, CalendarDays,
+  Loader2, ClipboardList, CheckSquare, Folder,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePendingContributions, useReviewContribution } from "@/hooks/useManagerReview";
@@ -10,7 +10,7 @@ import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { TaskManagement } from "@/components/manager/TaskManagement";
 import { ProjectManagement } from "@/components/manager/ProjectManagement";
-import { LeaveApprovals } from "@/components/manager/LeaveApprovals";
+
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -22,7 +22,7 @@ const itemVariants = {
   visible: { opacity: 1, y: 0 },
 };
 
-type TabType = "contributions" | "tasks" | "projects" | "leaves";
+type TabType = "contributions" | "tasks" | "projects";
 
 const ManagerDashboard = () => {
   const [activeTab, setActiveTab] = useState<TabType>("contributions");
@@ -42,7 +42,6 @@ const ManagerDashboard = () => {
 
   const tabs = [
     { id: "contributions" as TabType, label: "Contributions", icon: CheckSquare },
-    { id: "leaves" as TabType, label: "Leaves", icon: CalendarDays },
     { id: "tasks" as TabType, label: "Tasks", icon: ClipboardList },
     { id: "projects" as TabType, label: "Projects", icon: Folder },
   ];
@@ -140,8 +139,6 @@ const ManagerDashboard = () => {
           )}
         </>
       )}
-
-      {activeTab === "leaves" && <LeaveApprovals />}
 
       {activeTab === "tasks" && <TaskManagement />}
 
