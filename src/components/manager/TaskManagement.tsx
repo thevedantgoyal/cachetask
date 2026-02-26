@@ -18,6 +18,7 @@ import {
   LayoutGrid,
   BarChart3,
   GanttChart,
+  Briefcase,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,6 +33,7 @@ import {
   ManagedTask,
 } from "@/hooks/useTaskManagement";
 import { useInsertActivityLog } from "@/hooks/useTaskActivityLogs";
+import { useProjectMembers, useManagerProjects } from "@/hooks/useProjectManagement";
 import { TaskStatusBadge } from "@/components/tasks/TaskStatusBadge";
 import { TaskDetailDrawer, TaskDetailData } from "@/components/tasks/TaskDetailDrawer";
 import { KanbanBoard } from "@/components/kanban/KanbanBoard";
@@ -83,9 +85,12 @@ export const TaskManagement = () => {
   const [projectId, setProjectId] = useState("");
   const [priority, setPriority] = useState("medium");
   const [dueDate, setDueDate] = useState("");
+  const [taskType, setTaskType] = useState<"project_task" | "separate_task">("project_task");
 
   const { data: teamMembers = [], isLoading: membersLoading } = useTeamMembers();
   const { data: projects = [], isLoading: projectsLoading } = useProjects();
+  const { data: managerProjects = [] } = useManagerProjects();
+  const { data: projectMembers = [] } = useProjectMembers(taskType === "project_task" ? projectId : null);
   const { data: tasks = [], isLoading: tasksLoading } = useManagedTasks();
   
   const createTask = useCreateTask();
@@ -106,12 +111,25 @@ export const TaskManagement = () => {
     setProjectId("");
     setPriority("medium");
     setDueDate("");
+    setTaskType("project_task");
     setShowCreateForm(false);
   };
+
+  // Employees available for assignment based on task type
+  const availableEmployees = useMemo(() => {
+    if (taskType === "project_task" && projectId) {
+      return projectMembers;
+    }
+    return teamMembers;
+  }, [taskType, projectId, projectMembers, teamMembers]);
 
   const handleCreateTask = async () => {
     if (!title.trim()) {
       toast.error("Task title is required");
+      return;
+    }
+    if (taskType === "project_task" && !projectId) {
+      toast.error("Please select a project for project tasks");
       return;
     }
     try {
@@ -119,7 +137,7 @@ export const TaskManagement = () => {
         title: title.trim(),
         description: description.trim() || undefined,
         assignedTo: assignedTo || undefined,
-        projectId: projectId || undefined,
+        projectId: taskType === "project_task" ? (projectId || undefined) : undefined,
         priority,
         dueDate: dueDate || undefined,
       });
@@ -127,7 +145,7 @@ export const TaskManagement = () => {
         insertLog.mutateAsync({
           taskId: result.id,
           actionType: "created",
-          newValue: { title: title.trim(), priority, status: "pending" },
+          newValue: { title: title.trim(), priority, status: "pending", task_type: taskType },
         }).catch(console.error);
       }
       toast.success("Task created successfully");
@@ -328,6 +346,34 @@ export const TaskManagement = () => {
             New Task
           </h3>
 
+          {/* Task Type Selection */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => { setTaskType("project_task"); setProjectId(""); setAssignedTo(""); }}
+              className={cn(
+                "flex-1 py-2 px-3 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2",
+                taskType === "project_task"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Folder className="w-4 h-4" />
+              Project Task
+            </button>
+            <button
+              onClick={() => { setTaskType("separate_task"); setProjectId(""); setAssignedTo(""); }}
+              className={cn(
+                "flex-1 py-2 px-3 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2",
+                taskType === "separate_task"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Briefcase className="w-4 h-4" />
+              Separate Task
+            </button>
+          </div>
+
           <input
             type="text"
             value={title}
@@ -344,15 +390,39 @@ export const TaskManagement = () => {
             className="w-full p-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none"
           />
 
+          {/* Project selection (only for project tasks) */}
+          {taskType === "project_task" && (
+            <div className="relative">
+              <select
+                value={projectId}
+                onChange={(e) => { setProjectId(e.target.value); setAssignedTo(""); }}
+                className="w-full p-3 pr-10 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none"
+              >
+                <option value="">Select project *</option>
+                {managerProjects.map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.name}
+                  </option>
+                ))}
+              </select>
+              <Folder className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+            </div>
+          )}
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="relative">
               <select
                 value={assignedTo}
                 onChange={(e) => setAssignedTo(e.target.value)}
                 className="w-full p-3 pr-10 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none"
+                disabled={taskType === "project_task" && !projectId}
               >
-                <option value="">Assign to (optional)</option>
-                {teamMembers.map((member) => (
+                <option value="">
+                  {taskType === "project_task" && !projectId
+                    ? "Select a project first"
+                    : "Assign to (optional)"}
+                </option>
+                {availableEmployees.map((member) => (
                   <option key={member.id} value={member.id}>
                     {member.full_name}
                   </option>
@@ -361,24 +431,6 @@ export const TaskManagement = () => {
               <User className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
             </div>
 
-            <div className="relative">
-              <select
-                value={projectId}
-                onChange={(e) => setProjectId(e.target.value)}
-                className="w-full p-3 pr-10 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none"
-              >
-                <option value="">Select project (optional)</option>
-                {projects.map((project) => (
-                  <option key={project.id} value={project.id}>
-                    {project.name}
-                  </option>
-                ))}
-              </select>
-              <Folder className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="relative">
               <select
                 value={priority}
@@ -392,16 +444,16 @@ export const TaskManagement = () => {
               </select>
               <Flag className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
             </div>
+          </div>
 
-            <div className="relative">
-              <input
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                className="w-full p-3 pr-10 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
-              <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-            </div>
+          <div className="relative">
+            <input
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              className="w-full p-3 pr-10 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
+            />
+            <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
           </div>
 
           <div className="flex gap-2 pt-2">

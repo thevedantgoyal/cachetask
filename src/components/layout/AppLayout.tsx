@@ -16,6 +16,7 @@ const pageTitles: Record<string, string> = {
   "/leave": "Leave Management",
   "/timesheet": "Timesheet",
   "/rooms": "Room Booking",
+  "/projects": "Projects",
   "/manager": "Manager Dashboard",
   "/reports": "Reports",
   "/admin": "Admin Panel",
