@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useUserTasks, useCreateContribution } from "@/hooks/useContributions";
 import { useFileUpload } from "@/hooks/useFileUpload";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 interface AddWorkUpdateModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -14,7 +15,8 @@ export const AddWorkUpdateModal = ({ isOpen, onClose }: AddWorkUpdateModalProps)
   const [selectedTask, setSelectedTask] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [evidenceUrl, setEvidenceUrl] = useState<string | null>(null);
+  const [evidencePath, setEvidencePath] = useState<string | null>(null);
+  const [evidenceDisplayUrl, setEvidenceDisplayUrl] = useState<string | null>(null);
   const [evidenceType, setEvidenceType] = useState<string | null>(null);
   
   const { data: tasks, isLoading: tasksLoading } = useUserTasks();
@@ -37,9 +39,14 @@ export const AddWorkUpdateModal = ({ isOpen, onClose }: AddWorkUpdateModalProps)
     }
 
     try {
-      const url = await uploadFile(file);
-      if (url) {
-        setEvidenceUrl(url);
+      const path = await uploadFile(file);
+      if (path) {
+        setEvidencePath(path);
+        // Generate a signed URL for preview display
+        const { data: signedData } = await supabase.storage
+          .from("evidence")
+          .createSignedUrl(path, 3600);
+        setEvidenceDisplayUrl(signedData?.signedUrl || null);
         setEvidenceType(type === "image" ? "image" : file.type);
         toast({
           title: "File uploaded",
@@ -56,7 +63,8 @@ export const AddWorkUpdateModal = ({ isOpen, onClose }: AddWorkUpdateModalProps)
   };
 
   const removeEvidence = () => {
-    setEvidenceUrl(null);
+    setEvidencePath(null);
+    setEvidenceDisplayUrl(null);
     setEvidenceType(null);
   };
 
@@ -68,7 +76,7 @@ export const AddWorkUpdateModal = ({ isOpen, onClose }: AddWorkUpdateModalProps)
         title: title.trim(),
         description: description.trim(),
         taskId: selectedTask || undefined,
-        evidenceUrl: evidenceUrl || undefined,
+        evidenceUrl: evidencePath || undefined,
         evidenceType: evidenceType || undefined,
       });
       
@@ -80,7 +88,8 @@ export const AddWorkUpdateModal = ({ isOpen, onClose }: AddWorkUpdateModalProps)
       setSelectedTask("");
       setTitle("");
       setDescription("");
-      setEvidenceUrl(null);
+      setEvidencePath(null);
+      setEvidenceDisplayUrl(null);
       setEvidenceType(null);
       onClose();
     } catch (error) {
@@ -177,7 +186,7 @@ export const AddWorkUpdateModal = ({ isOpen, onClose }: AddWorkUpdateModalProps)
                 </div>
 
                 {/* Evidence Preview */}
-                {evidenceUrl && (
+                {evidenceDisplayUrl && (
                   <div className="relative bg-muted rounded-xl p-4">
                     <button
                       onClick={removeEvidence}
@@ -187,7 +196,7 @@ export const AddWorkUpdateModal = ({ isOpen, onClose }: AddWorkUpdateModalProps)
                     </button>
                     {evidenceType?.startsWith("image") ? (
                       <img
-                        src={evidenceUrl}
+                        src={evidenceDisplayUrl}
                         alt="Evidence"
                         className="max-h-40 rounded-lg mx-auto"
                       />
@@ -201,7 +210,7 @@ export const AddWorkUpdateModal = ({ isOpen, onClose }: AddWorkUpdateModalProps)
                 )}
 
                 {/* Attachment buttons */}
-                {!evidenceUrl && (
+                {!evidenceDisplayUrl && (
                   <div className="flex gap-4">
                     <label className="flex-1 flex flex-col items-center gap-2 p-4 rounded-xl bg-muted hover:bg-muted/80 transition-colors cursor-pointer">
                       <input

@@ -27,10 +27,9 @@ export const useFileUpload = () => {
 
       if (uploadError) throw uploadError;
 
-      const { data } = supabase.storage.from("evidence").getPublicUrl(filePath);
-
+      // Return the file path for storage in DB; generate signed URLs at read time
       setProgress(100);
-      return data.publicUrl;
+      return filePath;
     } catch (error) {
       console.error("Upload error:", error);
       throw error;

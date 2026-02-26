@@ -37,10 +37,26 @@ export const useTaskEvidence = (taskId: string | null) => {
         nameMap = new Map(profiles?.map((p) => [p.id, p.full_name]));
       }
 
-      return (data || []).map((e) => ({
-        ...e,
-        uploader_name: nameMap.get(e.uploaded_by) || "Unknown",
-      })) as TaskEvidence[];
+      // Generate fresh signed URLs for each evidence item
+      const evidenceWithUrls = await Promise.all(
+        (data || []).map(async (e) => {
+          let signedFileUrl = e.file_url;
+          // If the file_url is a storage path (not a full URL), create a signed URL
+          if (!e.file_url.startsWith("http")) {
+            const { data: signedData } = await supabase.storage
+              .from("evidence")
+              .createSignedUrl(e.file_url, 3600);
+            if (signedData) signedFileUrl = signedData.signedUrl;
+          }
+          return {
+            ...e,
+            file_url: signedFileUrl,
+            uploader_name: nameMap.get(e.uploaded_by) || "Unknown",
+          };
+        })
+      );
+
+      return evidenceWithUrls as TaskEvidence[];
     },
     enabled: !!taskId,
   });
@@ -82,15 +98,11 @@ export const useUploadEvidence = () => {
 
       if (uploadError) throw uploadError;
 
-      const { data: urlData } = supabase.storage
-        .from("evidence")
-        .getPublicUrl(filePath);
-
-      // Insert evidence record
+      // Store the file path (not a signed URL) so we can generate fresh signed URLs at read time
       const { error } = await supabase.from("task_evidence").insert({
         task_id: taskId,
         uploaded_by: profile.id,
-        file_url: urlData.publicUrl,
+        file_url: filePath,
         evidence_type: evidenceType,
         comment: comment || null,
       });
