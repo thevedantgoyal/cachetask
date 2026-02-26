@@ -26,6 +26,7 @@ import LeavePage from "./pages/LeavePage";
 import TimesheetPage from "./pages/TimesheetPage";
 import RoomBookingPage from "./pages/RoomBookingPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
+import EmployeeProjectsPage from "./pages/EmployeeProjectsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -60,6 +61,7 @@ const App = () => {
               <Route path="/leave" element={<ProtectedWithLayout><LeavePage /></ProtectedWithLayout>} />
               <Route path="/timesheet" element={<ProtectedWithLayout><TimesheetPage /></ProtectedWithLayout>} />
               <Route path="/rooms" element={<ProtectedWithLayout><RoomBookingPage /></ProtectedWithLayout>} />
+              <Route path="/projects" element={<ProtectedWithLayout><EmployeeProjectsPage /></ProtectedWithLayout>} />
               <Route path="/manager" element={<ProtectedWithLayout><ManagerDashboard /></ProtectedWithLayout>} />
               <Route path="/reports" element={<OrganizationRoute><AppLayout><ReportsPage /></AppLayout></OrganizationRoute>} />
               <Route path="/admin" element={<AdminRoute><AppLayout><AdminDashboard /></AppLayout></AdminRoute>} />

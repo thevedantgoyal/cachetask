@@ -343,35 +343,87 @@ export type Database = {
           },
         ]
       }
+      project_members: {
+        Row: {
+          created_at: string
+          employee_id: string
+          id: string
+          project_id: string
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          id?: string
+          project_id: string
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          id?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_members_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_members_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           created_at: string
+          created_by: string | null
           description: string | null
+          due_date: string | null
           id: string
           name: string
+          project_type: string
           status: string | null
           team_id: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
+          created_by?: string | null
           description?: string | null
+          due_date?: string | null
           id?: string
           name: string
+          project_type?: string
           status?: string | null
           team_id?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
+          created_by?: string | null
           description?: string | null
+          due_date?: string | null
           id?: string
           name?: string
+          project_type?: string
           status?: string | null
           team_id?: string | null
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "projects_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "projects_team_id_fkey"
             columns: ["team_id"]
@@ -831,6 +883,7 @@ export type Database = {
           due_date: string | null
           id: string
           is_deleted: boolean
+          is_seen: boolean
           parent_task_id: string | null
           priority: string | null
           project_id: string | null
@@ -855,6 +908,7 @@ export type Database = {
           due_date?: string | null
           id?: string
           is_deleted?: boolean
+          is_seen?: boolean
           parent_task_id?: string | null
           priority?: string | null
           project_id?: string | null
@@ -879,6 +933,7 @@ export type Database = {
           due_date?: string | null
           id?: string
           is_deleted?: boolean
+          is_seen?: boolean
           parent_task_id?: string | null
           priority?: string | null
           project_id?: string | null

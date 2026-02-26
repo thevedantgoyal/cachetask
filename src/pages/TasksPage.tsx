@@ -1,6 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
-import { ClipboardList, LayoutList, Columns3, GanttChart } from "lucide-react";
+import { ClipboardList, LayoutList, Columns3, GanttChart, Folder, ListTodo } from "lucide-react";
 import { ConnectPlusLoader } from "@/components/ui/ConnectPlusLoader";
 import { TaskCard } from "@/components/cards/TaskCard";
 import { useTasks, formatDueLabel } from "@/hooks/useTasks";
@@ -12,6 +12,7 @@ import { GanttTimeline } from "@/components/tasks/GanttTimeline";
 import { useUpdateTaskStatus } from "@/hooks/useTaskManagement";
 import { useInsertActivityLog } from "@/hooks/useTaskActivityLogs";
 import { useTaskDependencies } from "@/hooks/useTaskDependencies";
+import { useUnseenTaskCounts, useMarkTasksSeen } from "@/hooks/useProjectManagement";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -26,6 +27,7 @@ const itemVariants = {
 };
 
 type ViewMode = "list" | "kanban" | "gantt";
+type TaskTypeFilter = "all" | "project" | "separate";
 
 const TasksPage = () => {
   const { data: tasks, isLoading, error } = useTasks();
@@ -35,12 +37,31 @@ const TasksPage = () => {
   const [blockedReason, setBlockedReason] = useState("");
   const [showBlockedPrompt, setShowBlockedPrompt] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [taskTypeFilter, setTaskTypeFilter] = useState<TaskTypeFilter>("all");
 
   const updateStatus = useUpdateTaskStatus();
   const insertLog = useInsertActivityLog();
+  const { data: unseenCounts } = useUnseenTaskCounts();
+  const markSeen = useMarkTasksSeen();
+
+  // Mark tasks as seen when filter is selected
+  useEffect(() => {
+    if (taskTypeFilter === "project") {
+      markSeen.mutate("project");
+    } else if (taskTypeFilter === "separate") {
+      markSeen.mutate("separate");
+    }
+  }, [taskTypeFilter]);
 
   const filteredTasks = useMemo(() => {
     return tasks?.filter((t) => {
+      // Task type filter
+      if (taskTypeFilter === "project") {
+        if (t.task_type !== "project_task" || !t.project_name || t.project_name === "No Project") return false;
+      } else if (taskTypeFilter === "separate") {
+        if (t.task_type === "project_task" && t.project_name && t.project_name !== "No Project") return false;
+      }
+      
       if (filters.status && t.status !== filters.status) return false;
       if (filters.priority && t.priority !== filters.priority) return false;
       if (filters.search) {
@@ -51,7 +72,7 @@ const TasksPage = () => {
       if (filters.dateRange.to && t.due_date && t.due_date > filters.dateRange.to) return false;
       return true;
     });
-  }, [tasks, filters]);
+  }, [tasks, filters, taskTypeFilter]);
 
   const allTasksList = useMemo(() => (tasks || []).map(t => ({ id: t.id, title: t.title })), [tasks]);
 
@@ -163,6 +184,56 @@ const TasksPage = () => {
 
   return (
     <>
+      {/* Task Type Filter Buttons */}
+      <div className="flex gap-2 mb-3">
+        <button
+          onClick={() => setTaskTypeFilter("all")}
+          className={cn(
+            "flex-1 py-2.5 px-3 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2",
+            taskTypeFilter === "all"
+              ? "bg-primary text-primary-foreground shadow-md"
+              : "bg-card hover:bg-muted border border-border"
+          )}
+        >
+          <ListTodo className="w-4 h-4" />
+          All Tasks
+        </button>
+        <button
+          onClick={() => setTaskTypeFilter("project")}
+          className={cn(
+            "flex-1 py-2.5 px-3 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 relative",
+            taskTypeFilter === "project"
+              ? "bg-primary text-primary-foreground shadow-md"
+              : "bg-card hover:bg-muted border border-border"
+          )}
+        >
+          <Folder className="w-4 h-4" />
+          Project Tasks
+          {unseenCounts && unseenCounts.projectTaskCount > 0 && taskTypeFilter !== "project" && (
+            <span className="absolute -top-1.5 -right-1.5 bg-destructive text-destructive-foreground text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">
+              {unseenCounts.projectTaskCount}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => setTaskTypeFilter("separate")}
+          className={cn(
+            "flex-1 py-2.5 px-3 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 relative",
+            taskTypeFilter === "separate"
+              ? "bg-primary text-primary-foreground shadow-md"
+              : "bg-card hover:bg-muted border border-border"
+          )}
+        >
+          <ClipboardList className="w-4 h-4" />
+          Separate
+          {unseenCounts && unseenCounts.separateTaskCount > 0 && taskTypeFilter !== "separate" && (
+            <span className="absolute -top-1.5 -right-1.5 bg-destructive text-destructive-foreground text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">
+              {unseenCounts.separateTaskCount}
+            </span>
+          )}
+        </button>
+      </div>
+
       {/* View Toggle */}
       <div className="flex items-center gap-2 mb-3">
         <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-0.5">

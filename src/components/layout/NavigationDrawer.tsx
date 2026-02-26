@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import {
   Home, ListTodo, History, BarChart3, User, Shield, Users,
   TrendingUp, Building2, CalendarCheck, CalendarDays, Timer,
-  Bell, Settings, LogOut, Zap, FileText, Target, DoorOpen,
+  Bell, Settings, LogOut, Zap, FileText, Target, DoorOpen, Folder,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -39,6 +39,7 @@ const navGroups: NavGroup[] = [
       { icon: Home, label: "Dashboard", path: "/" },
       { icon: ListTodo, label: "Tasks", path: "/tasks" },
       { icon: History, label: "Contributions", path: "/history" },
+      { icon: Folder, label: "Projects", path: "/projects" },
     ],
   },
   {
