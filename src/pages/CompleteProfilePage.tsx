@@ -138,7 +138,9 @@ const CompleteProfilePage = () => {
       });
 
       // Save skills to the skills table
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (user) {
         const skillRows = skills.map((name) => ({
           user_id: user.id,
@@ -146,9 +148,7 @@ const CompleteProfilePage = () => {
           proficiency_level: 1,
           goal_level: 5,
         }));
-        const { error: skillsError } = await supabase
-          .from("skills")
-          .insert(skillRows);
+        const { error: skillsError } = await supabase.from("skills").insert(skillRows);
         if (skillsError) {
           console.error("Failed to save skills:", skillsError);
         }
@@ -177,7 +177,7 @@ const CompleteProfilePage = () => {
       <main className="max-w-lg mx-auto px-4 py-6 space-y-6">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
           <p className="text-muted-foreground text-sm text-center mb-6">
-            Complete all required fields (<span className="text-destructive">*</span>) to get started with CacheTask.
+            Complete all required fields (<span className="text-destructive">*</span>) to get started with ConnectPlus.
           </p>
         </motion.div>
 
