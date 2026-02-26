@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
 import {
   Camera,
@@ -125,6 +126,7 @@ const CompleteProfilePage = () => {
 
     setSubmitting(true);
     try {
+      // Save profile data
       await completeProfile.mutateAsync({
         phone,
         bio,
@@ -134,8 +136,27 @@ const CompleteProfilePage = () => {
         resume_url: resumeUrl || undefined,
         other_social_links: { ...socialLinks, skills: skills.join(",") },
       });
+
+      // Save skills to the skills table
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const skillRows = skills.map((name) => ({
+          user_id: user.id,
+          name,
+          proficiency_level: 1,
+          goal_level: 5,
+        }));
+        const { error: skillsError } = await supabase
+          .from("skills")
+          .insert(skillRows);
+        if (skillsError) {
+          console.error("Failed to save skills:", skillsError);
+        }
+      }
+
       // Wait for the profile query cache to update before navigating
       await queryClient.invalidateQueries({ queryKey: ["extended-profile"] });
+      await queryClient.invalidateQueries({ queryKey: ["skills"] });
       await queryClient.refetchQueries({ queryKey: ["extended-profile"] });
       navigate("/", { replace: true });
     } catch {

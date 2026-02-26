@@ -11,7 +11,7 @@ import { PushNotificationToggle } from "@/components/notifications/PushNotificat
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
+
 import { WorkingStatusSelector } from "@/components/profile/WorkingStatusSelector";
 import {
   useExtendedProfile,
@@ -117,9 +117,6 @@ const ProfilePage = () => {
   }
 
   const statusInfo = STATUS_INDICATORS[profile?.working_status || "available"] || STATUS_INDICATORS.available;
-  const skills = profile?.other_social_links && typeof profile.other_social_links === "object"
-    ? (profile.other_social_links as Record<string, string>).skills?.split(",").filter(Boolean) || []
-    : [];
 
   return (
     <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-6">
@@ -210,20 +207,6 @@ const ProfilePage = () => {
             ) : (
               <p className="text-sm text-foreground/80">{profile?.bio}</p>
             )}
-          </div>
-        </motion.section>
-      )}
-
-      {/* Skills */}
-      {skills.length > 0 && (
-        <motion.section variants={itemVariants}>
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1">Skills</h3>
-          <div className="bg-card rounded-2xl p-4 shadow-soft border border-border/50">
-            <div className="flex flex-wrap gap-1.5">
-              {skills.map((skill) => (
-                <Badge key={skill} variant="secondary">{skill}</Badge>
-              ))}
-            </div>
           </div>
         </motion.section>
       )}
