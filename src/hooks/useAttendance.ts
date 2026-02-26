@@ -64,7 +64,7 @@ function dbRowToRecord(row: any): AttendanceRecord {
   return {
     id: row.id,
     date: row.date,
-    status: row.status === "half_day" ? "present" : (row.status as "present" | "absent" | "pending"),
+    status: (row.status === "half_day" || row.status === "late" || row.status === "present") ? "present" : (row.status === "absent" ? "absent" : "pending"),
     checkInTime: checkIn,
     checkOutTime: checkOut,
     faceVerified: !!checkIn,
