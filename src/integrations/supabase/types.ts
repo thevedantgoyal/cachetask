@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      attendance: {
+        Row: {
+          check_in_time: string | null
+          check_out_time: string | null
+          created_at: string
+          date: string
+          id: string
+          location_lat: number | null
+          location_lng: number | null
+          notes: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          check_in_time?: string | null
+          check_out_time?: string | null
+          created_at?: string
+          date: string
+          id?: string
+          location_lat?: number | null
+          location_lng?: number | null
+          notes?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          check_in_time?: string | null
+          check_out_time?: string | null
+          created_at?: string
+          date?: string
+          id?: string
+          location_lat?: number | null
+          location_lng?: number | null
+          notes?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       booking_audit_log: {
         Row: {
           action: string
@@ -108,6 +150,136 @@ export type Database = {
             columns: ["task_id"]
             isOneToOne: false
             referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leave_balances: {
+        Row: {
+          created_at: string
+          id: string
+          leave_type_id: string
+          total: number
+          updated_at: string
+          used: number
+          user_id: string
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          leave_type_id: string
+          total?: number
+          updated_at?: string
+          used?: number
+          user_id: string
+          year?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          leave_type_id?: string
+          total?: number
+          updated_at?: string
+          used?: number
+          user_id?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_balances_leave_type_id_fkey"
+            columns: ["leave_type_id"]
+            isOneToOne: false
+            referencedRelation: "leave_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leave_types: {
+        Row: {
+          code: string
+          color: string
+          created_at: string
+          default_days: number
+          id: string
+          name: string
+        }
+        Insert: {
+          code: string
+          color?: string
+          created_at?: string
+          default_days?: number
+          id?: string
+          name: string
+        }
+        Update: {
+          code?: string
+          color?: string
+          created_at?: string
+          default_days?: number
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      leaves: {
+        Row: {
+          approved_at: string | null
+          approver_comment: string | null
+          approver_id: string | null
+          attachment_url: string | null
+          created_at: string
+          days_count: number
+          from_date: string
+          half_day: boolean
+          id: string
+          leave_type_id: string
+          reason: string
+          status: string
+          to_date: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approver_comment?: string | null
+          approver_id?: string | null
+          attachment_url?: string | null
+          created_at?: string
+          days_count: number
+          from_date: string
+          half_day?: boolean
+          id?: string
+          leave_type_id: string
+          reason: string
+          status?: string
+          to_date: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          approved_at?: string | null
+          approver_comment?: string | null
+          approver_id?: string | null
+          attachment_url?: string | null
+          created_at?: string
+          days_count?: number
+          from_date?: string
+          half_day?: boolean
+          id?: string
+          leave_type_id?: string
+          reason?: string
+          status?: string
+          to_date?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leaves_leave_type_id_fkey"
+            columns: ["leave_type_id"]
+            isOneToOne: false
+            referencedRelation: "leave_types"
             referencedColumns: ["id"]
           },
         ]
@@ -1043,6 +1215,60 @@ export type Database = {
           },
         ]
       }
+      timesheets: {
+        Row: {
+          attachment_url: string | null
+          created_at: string
+          date: string
+          description: string
+          hours: number
+          id: string
+          project_id: string | null
+          task_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attachment_url?: string | null
+          created_at?: string
+          date: string
+          description: string
+          hours: number
+          id?: string
+          project_id?: string | null
+          task_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attachment_url?: string | null
+          created_at?: string
+          date?: string
+          description?: string
+          hours?: number
+          id?: string
+          project_id?: string | null
+          task_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "timesheets_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timesheets_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -1069,6 +1295,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      approve_leave: {
+        Args: { _approver_comment?: string; _leave_id: string }
+        Returns: boolean
+      }
       check_booking_conflict: {
         Args: {
           _booking_date: string
@@ -1085,6 +1315,15 @@ export type Database = {
           start_time: string
           title: string
         }[]
+      }
+      check_leave_overlap: {
+        Args: {
+          _exclude_id?: string
+          _from_date: string
+          _to_date: string
+          _user_id: string
+        }
+        Returns: boolean
       }
       create_notification: {
         Args: {
@@ -1106,6 +1345,10 @@ export type Database = {
       }
       is_manager_of: {
         Args: { _employee_user_id: string; _manager_user_id: string }
+        Returns: boolean
+      }
+      reject_leave: {
+        Args: { _approver_comment?: string; _leave_id: string }
         Returns: boolean
       }
       setup_first_admin: {
