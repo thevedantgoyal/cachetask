@@ -20,7 +20,7 @@ const allNavItems: NavItem[] = [
   { icon: Timer, label: "Timesheet", path: "/timesheet" },
   { icon: TrendingUp, label: "Skills", path: "/skills" },
   { icon: History, label: "History", path: "/history" },
-  { icon: Users, label: "Team", path: "/manager", roles: ["manager", "team_lead", "hr", "admin"] },
+  { icon: Users, label: "Team", path: "/manager", roles: ["manager", "team_lead", "hr"] },
   { icon: Building2, label: "Reports", path: "/reports", roles: ["organization"] },
   { icon: Shield, label: "Admin", path: "/admin", roles: ["admin"] },
   { icon: User, label: "Profile", path: "/profile" },

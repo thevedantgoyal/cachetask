@@ -65,7 +65,7 @@ const navGroups: NavGroup[] = [
     title: "Management",
     color: "text-purple-500",
     items: [
-      { icon: Users, label: "Team / Manager", path: "/manager", roles: ["manager", "team_lead", "hr", "admin"] },
+      { icon: Users, label: "Team / Manager", path: "/manager", roles: ["manager", "team_lead", "hr"] },
       { icon: Shield, label: "Admin Panel", path: "/admin", roles: ["admin"] },
     ],
   },
