@@ -25,6 +25,39 @@ export const useSkills = () => {
         .order("name");
 
       if (error) throw error;
+
+      // If no skills in table, try to hydrate from profile other_social_links
+      if (!data || data.length === 0) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("other_social_links")
+          .eq("user_id", user.id)
+          .single();
+
+        const skillsStr =
+          profile?.other_social_links &&
+          typeof profile.other_social_links === "object"
+            ? (profile.other_social_links as Record<string, string>).skills
+            : null;
+
+        if (skillsStr) {
+          const skillNames = skillsStr.split(",").map((s: string) => s.trim()).filter(Boolean);
+          if (skillNames.length > 0) {
+            const rows = skillNames.map((name: string) => ({
+              user_id: user.id,
+              name,
+              proficiency_level: 1,
+              goal_level: 5,
+            }));
+            const { data: inserted, error: insertErr } = await supabase
+              .from("skills")
+              .insert(rows)
+              .select();
+            if (!insertErr && inserted) return inserted;
+          }
+        }
+      }
+
       return data || [];
     },
     enabled: !!user,
