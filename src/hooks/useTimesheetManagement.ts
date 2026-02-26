@@ -1,5 +1,8 @@
-import { useState, useMemo } from "react";
-import { format, startOfWeek, endOfWeek, addDays, isAfter } from "date-fns";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { format, startOfWeek, endOfWeek, addDays, isAfter, startOfMonth, endOfMonth, addMonths, subMonths } from "date-fns";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 export interface TimesheetEntry {
   id: string;
@@ -22,94 +25,112 @@ export interface ProjectOption {
 
 export type TimesheetStatus = "incomplete" | "submitted" | "approved";
 
-const mockProjects: ProjectOption[] = [
-  {
-    id: "p1",
-    name: "CacheTask Platform",
-    tasks: [
-      { id: "t1", title: "Frontend Development" },
-      { id: "t2", title: "API Integration" },
-      { id: "t3", title: "Bug Fixes" },
-    ],
-  },
-  {
-    id: "p2",
-    name: "HR Portal Redesign",
-    tasks: [
-      { id: "t4", title: "UI/UX Research" },
-      { id: "t5", title: "Component Library" },
-      { id: "t6", title: "User Testing" },
-    ],
-  },
-  {
-    id: "p3",
-    name: "Mobile App v2",
-    tasks: [
-      { id: "t7", title: "Feature Development" },
-      { id: "t8", title: "Performance Optimization" },
-    ],
-  },
-];
-
-const generateMockEntries = (): TimesheetEntry[] => {
-  const today = new Date();
-  const weekStart = startOfWeek(today, { weekStartsOn: 1 });
-  const entries: TimesheetEntry[] = [];
-
-  // Add some mock entries for earlier days this week
-  for (let i = 0; i < Math.min(today.getDay() === 0 ? 6 : today.getDay() - 1, 3); i++) {
-    const date = addDays(weekStart, i);
-    entries.push({
-      id: `ts-${i}-1`,
-      date: format(date, "yyyy-MM-dd"),
-      projectId: "p1",
-      projectName: "CacheTask Platform",
-      taskId: "t1",
-      taskTitle: "Frontend Development",
-      hours: 5,
-      description: "Worked on leave management module UI components",
-      attachment: null,
-      createdAt: format(date, "yyyy-MM-dd'T'09:00:00"),
-    });
-    entries.push({
-      id: `ts-${i}-2`,
-      date: format(date, "yyyy-MM-dd"),
-      projectId: "p2",
-      projectName: "HR Portal Redesign",
-      taskId: "t4",
-      taskTitle: "UI/UX Research",
-      hours: 3,
-      description: "Conducted stakeholder interviews for portal redesign",
-      attachment: null,
-      createdAt: format(date, "yyyy-MM-dd'T'14:00:00"),
-    });
-  }
-
-  return entries;
-};
-
 const TARGET_HOURS = 40;
 const MAX_DAILY_HOURS = 24;
 const MAX_WEEKLY_HOURS = 60;
 
 export const useTimesheetManagement = () => {
-  const [entries, setEntries] = useState<TimesheetEntry[]>(generateMockEntries);
+  const { user } = useAuth();
+  const [entries, setEntries] = useState<TimesheetEntry[]>([]);
   const [weekStatus, setWeekStatus] = useState<TimesheetStatus>("incomplete");
-  const [currentWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
+  const [currentWeekStart, setCurrentWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
+  const [projects, setProjects] = useState<ProjectOption[]>([]);
+  const [selectedMonth, setSelectedMonth] = useState(new Date());
 
-  const projects = mockProjects;
+  // Fetch user's projects with tasks
+  const fetchProjects = useCallback(async () => {
+    if (!user) return;
+
+    // Get user's profile id
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (!profile) return;
+
+    // Get projects user is a member of
+    const { data: memberships } = await supabase
+      .from("project_members")
+      .select("project_id, projects(id, name)")
+      .eq("employee_id", profile.id);
+
+    if (!memberships || memberships.length === 0) {
+      setProjects([]);
+      return;
+    }
+
+    const projectOptions: ProjectOption[] = [];
+    for (const m of memberships) {
+      const proj = m.projects as any;
+      if (!proj) continue;
+
+      // Get tasks for this project assigned to user
+      const { data: tasks } = await supabase
+        .from("tasks")
+        .select("id, title")
+        .eq("project_id", proj.id)
+        .eq("assigned_to", profile.id)
+        .eq("is_deleted", false);
+
+      projectOptions.push({
+        id: proj.id,
+        name: proj.name,
+        tasks: (tasks || []).map((t) => ({ id: t.id, title: t.title })),
+      });
+    }
+
+    setProjects(projectOptions);
+  }, [user]);
+
+  // Fetch timesheet entries for current week
+  const fetchEntries = useCallback(async () => {
+    if (!user) return;
+    const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 });
+
+    const { data, error } = await supabase
+      .from("timesheets")
+      .select("*, projects(name), tasks(title)")
+      .eq("user_id", user.id)
+      .gte("date", format(currentWeekStart, "yyyy-MM-dd"))
+      .lte("date", format(weekEnd, "yyyy-MM-dd"))
+      .order("date", { ascending: true });
+
+    if (error) {
+      console.error("Error fetching timesheets:", error);
+      return;
+    }
+
+    const mapped: TimesheetEntry[] = (data || []).map((row: any) => ({
+      id: row.id,
+      date: row.date,
+      projectId: row.project_id || "",
+      projectName: row.projects?.name || "Unknown",
+      taskId: row.task_id || "",
+      taskTitle: row.tasks?.title || "General",
+      hours: Number(row.hours),
+      description: row.description,
+      attachment: row.attachment_url,
+      createdAt: row.created_at,
+    }));
+
+    setEntries(mapped);
+  }, [user, currentWeekStart]);
+
+  useEffect(() => {
+    fetchProjects();
+  }, [fetchProjects]);
+
+  useEffect(() => {
+    fetchEntries();
+  }, [fetchEntries]);
 
   const weekDays = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i));
   }, [currentWeekStart]);
 
-  const currentWeekEntries = useMemo(() => {
-    const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 });
-    return entries.filter((e) => {
-      const d = new Date(e.date);
-      return d >= currentWeekStart && d <= weekEnd;
-    });
-  }, [entries, currentWeekStart]);
+  const currentWeekEntries = entries;
 
   const totalWeeklyHours = useMemo(() => {
     return currentWeekEntries.reduce((sum, e) => sum + e.hours, 0);
@@ -151,7 +172,7 @@ export const useTimesheetManagement = () => {
     return null;
   };
 
-  const addEntry = (
+  const addEntry = async (
     date: Date,
     projectId: string,
     taskId: string,
@@ -159,33 +180,61 @@ export const useTimesheetManagement = () => {
     description: string,
     attachment: string | null
   ) => {
-    const project = projects.find((p) => p.id === projectId);
-    const task = project?.tasks.find((t) => t.id === taskId);
-    if (!project || !task) return;
+    if (!user) return;
 
-    const newEntry: TimesheetEntry = {
-      id: `ts-${Date.now()}`,
+    const { error } = await supabase.from("timesheets").insert({
+      user_id: user.id,
+      project_id: projectId || null,
+      task_id: taskId || null,
       date: format(date, "yyyy-MM-dd"),
-      projectId,
-      projectName: project.name,
-      taskId,
-      taskTitle: task.title,
       hours,
       description,
-      attachment,
-      createdAt: new Date().toISOString(),
-    };
+      attachment_url: attachment,
+    });
 
-    setEntries((prev) => [...prev, newEntry]);
+    if (error) {
+      toast.error("Failed to save timesheet entry");
+      console.error(error);
+      return;
+    }
+
+    toast.success("Time entry logged!");
+    fetchEntries();
   };
 
-  const deleteEntry = (id: string) => {
+  const deleteEntry = async (id: string) => {
     if (weekStatus !== "incomplete") return;
-    setEntries((prev) => prev.filter((e) => e.id !== id));
+
+    const { error } = await supabase.from("timesheets").delete().eq("id", id);
+    if (error) {
+      toast.error("Failed to delete entry");
+      console.error(error);
+      return;
+    }
+
+    toast.success("Entry deleted");
+    fetchEntries();
   };
 
   const submitWeeklyTimesheet = () => {
     setWeekStatus("submitted");
+    toast.success("Weekly timesheet submitted for review!");
+  };
+
+  // Navigate weeks
+  const goToNextWeek = () => {
+    setCurrentWeekStart((prev) => addDays(prev, 7));
+    setWeekStatus("incomplete");
+  };
+
+  const goToPrevWeek = () => {
+    setCurrentWeekStart((prev) => addDays(prev, -7));
+    setWeekStatus("incomplete");
+  };
+
+  const goToWeekOf = (date: Date) => {
+    setCurrentWeekStart(startOfWeek(date, { weekStartsOn: 1 }));
+    setWeekStatus("incomplete");
   };
 
   return {
@@ -203,5 +252,10 @@ export const useTimesheetManagement = () => {
     addEntry,
     deleteEntry,
     submitWeeklyTimesheet,
+    goToNextWeek,
+    goToPrevWeek,
+    goToWeekOf,
+    selectedMonth,
+    setSelectedMonth,
   };
 };

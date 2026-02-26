@@ -1,4 +1,8 @@
 import { useState, useCallback, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { format } from "date-fns";
 
 export type AttendanceStep = "disclaimer" | "face" | "location" | "confirmation";
 export type VerificationStatus = "pending" | "verifying" | "success" | "failed";
@@ -28,123 +32,54 @@ export interface LocationData {
   isWithinRadius: boolean;
 }
 
-// Office location coordinates
 const OFFICE_LOCATION = {
   latitude: 28.49726565449399,
   longitude: 77.1633343946611,
-  radius: 70, // meters
+  radius: 70,
 };
 
 function calculateDuration(checkIn: string, checkOut: string): string {
   const [h1, m1, s1] = checkIn.split(":").map(Number);
   const [h2, m2, s2] = checkOut.split(":").map(Number);
-  let totalSeconds = (h2 * 3600 + m2 * 60 + s2) - (h1 * 3600 + m1 * 60 + s1);
+  let totalSeconds = (h2 * 3600 + m2 * 60 + (s2 || 0)) - (h1 * 3600 + m1 * 60 + (s1 || 0));
   if (totalSeconds < 0) totalSeconds += 86400;
   const hours = Math.floor(totalSeconds / 3600);
   const mins = Math.floor((totalSeconds % 3600) / 60);
   return `${hours}h ${mins}m`;
 }
 
-// Mock attendance history
-const MOCK_ATTENDANCE_HISTORY: AttendanceRecord[] = [
-  {
-    id: "1",
-    date: "2026-02-04",
-    status: "present",
-    checkInTime: "09:15:32",
-    checkOutTime: "18:02:10",
-    faceVerified: true,
-    locationVerified: true,
-    checkOutFaceVerified: true,
-    checkOutLocationVerified: true,
-    distance: 45,
-    checkOutDistance: 38,
-    verificationMethod: "Face + Geo-fence",
-    totalHoursWorked: "8h 46m",
-  },
-  {
-    id: "2",
-    date: "2026-02-03",
-    status: "present",
-    checkInTime: "09:02:18",
-    checkOutTime: "17:45:55",
-    faceVerified: true,
-    locationVerified: true,
-    checkOutFaceVerified: true,
-    checkOutLocationVerified: true,
-    distance: 23,
-    checkOutDistance: 19,
-    verificationMethod: "Face + Geo-fence",
-    totalHoursWorked: "8h 43m",
-  },
-  {
-    id: "3",
-    date: "2026-02-02",
-    status: "absent",
-    checkInTime: null,
-    checkOutTime: null,
-    faceVerified: false,
-    locationVerified: false,
-    checkOutFaceVerified: false,
-    checkOutLocationVerified: false,
-    distance: null,
-    checkOutDistance: null,
-    verificationMethod: "Not attempted",
-    totalHoursWorked: null,
-  },
-  {
-    id: "4",
-    date: "2026-02-01",
-    status: "present",
-    checkInTime: "08:58:45",
-    checkOutTime: "18:30:00",
-    faceVerified: true,
-    locationVerified: true,
-    checkOutFaceVerified: true,
-    checkOutLocationVerified: true,
-    distance: 67,
-    checkOutDistance: 52,
-    verificationMethod: "Face + Geo-fence",
-    totalHoursWorked: "9h 31m",
-  },
-  {
-    id: "5",
-    date: "2026-01-31",
-    status: "present",
-    checkInTime: "09:30:12",
-    checkOutTime: null,
-    faceVerified: true,
-    locationVerified: true,
-    checkOutFaceVerified: false,
-    checkOutLocationVerified: false,
-    distance: 12,
-    checkOutDistance: null,
-    verificationMethod: "Face + Geo-fence",
-    totalHoursWorked: null,
-  },
-];
-
-function calculateDistance(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number
-): number {
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371e3;
   const φ1 = (lat1 * Math.PI) / 180;
   const φ2 = (lat2 * Math.PI) / 180;
   const Δφ = ((lat2 - lat1) * Math.PI) / 180;
   const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+  const a = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
-  const a =
-    Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-  return R * c;
+function dbRowToRecord(row: any): AttendanceRecord {
+  const checkIn = row.check_in_time ? format(new Date(row.check_in_time), "HH:mm:ss") : null;
+  const checkOut = row.check_out_time ? format(new Date(row.check_out_time), "HH:mm:ss") : null;
+  return {
+    id: row.id,
+    date: row.date,
+    status: row.status === "half_day" ? "present" : (row.status as "present" | "absent" | "pending"),
+    checkInTime: checkIn,
+    checkOutTime: checkOut,
+    faceVerified: !!checkIn,
+    locationVerified: !!checkIn,
+    checkOutFaceVerified: !!checkOut,
+    checkOutLocationVerified: !!checkOut,
+    distance: row.location_lat ? Math.round(calculateDistance(row.location_lat, row.location_lng, OFFICE_LOCATION.latitude, OFFICE_LOCATION.longitude)) : null,
+    checkOutDistance: checkOut ? 0 : null,
+    verificationMethod: checkIn ? "Face + Geo-fence" : "Not attempted",
+    totalHoursWorked: checkIn && checkOut ? calculateDuration(checkIn, checkOut) : null,
+  };
 }
 
 export const useAttendance = () => {
+  const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState<AttendanceStep>("disclaimer");
   const [activeFlowType, setActiveFlowType] = useState<FlowType>("checkin");
   const [faceStatus, setFaceStatus] = useState<VerificationStatus>("pending");
@@ -152,16 +87,44 @@ export const useAttendance = () => {
   const [locationData, setLocationData] = useState<LocationData | null>(null);
   const [todayMarked, setTodayMarked] = useState(false);
   const [todayCheckedOut, setTodayCheckedOut] = useState(false);
-  const [attendanceHistory, setAttendanceHistory] = useState<AttendanceRecord[]>(
-    MOCK_ATTENDANCE_HISTORY
-  );
+  const [attendanceHistory, setAttendanceHistory] = useState<AttendanceRecord[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [workingDurationSeconds, setWorkingDurationSeconds] = useState(0);
 
   const officeRadius = OFFICE_LOCATION.radius;
 
+  // Fetch attendance history from DB
+  const fetchHistory = useCallback(async () => {
+    if (!user) return;
+    const { data, error } = await supabase
+      .from("attendance")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("date", { ascending: false })
+      .limit(30);
+
+    if (error) {
+      console.error("Error fetching attendance:", error);
+      return;
+    }
+
+    const records = (data || []).map(dbRowToRecord);
+    setAttendanceHistory(records);
+
+    const today = format(new Date(), "yyyy-MM-dd");
+    const todayRec = records.find((r) => r.date === today);
+    if (todayRec) {
+      setTodayMarked(true);
+      if (todayRec.checkOutTime) setTodayCheckedOut(true);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    fetchHistory();
+  }, [fetchHistory]);
+
   const getTodayAttendance = useCallback((): AttendanceRecord | null => {
-    const today = new Date().toISOString().split("T")[0];
+    const today = format(new Date(), "yyyy-MM-dd");
     return attendanceHistory.find((record) => record.date === today) || null;
   }, [attendanceHistory]);
 
@@ -245,22 +208,10 @@ export const useAttendance = () => {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude, accuracy } = position.coords;
-          const distance = calculateDistance(
-            latitude,
-            longitude,
-            OFFICE_LOCATION.latitude,
-            OFFICE_LOCATION.longitude
-          );
-
+          const distance = calculateDistance(latitude, longitude, OFFICE_LOCATION.latitude, OFFICE_LOCATION.longitude);
           const isWithinRadius = distance <= OFFICE_LOCATION.radius;
 
-          setLocationData({
-            latitude,
-            longitude,
-            accuracy,
-            distance: Math.round(distance),
-            isWithinRadius,
-          });
+          setLocationData({ latitude, longitude, accuracy, distance: Math.round(distance), isWithinRadius });
 
           setTimeout(() => {
             if (isWithinRadius) {
@@ -269,9 +220,7 @@ export const useAttendance = () => {
               resolve(true);
             } else {
               setLocationStatus("failed");
-              setErrorMessage(
-                `You are ${Math.round(distance)}m away from the office. Please move within ${OFFICE_LOCATION.radius}m radius.`
-              );
+              setErrorMessage(`You are ${Math.round(distance)}m away from the office. Please move within ${OFFICE_LOCATION.radius}m radius.`);
               resolve(false);
             }
           }, 1500);
@@ -293,60 +242,62 @@ export const useAttendance = () => {
           }
           resolve(false);
         },
-        {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 0,
-        }
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
       );
     });
   }, []);
 
-  const confirmAttendance = useCallback(() => {
+  const confirmAttendance = useCallback(async () => {
+    if (!user) return;
     const now = new Date();
-    const newRecord: AttendanceRecord = {
-      id: Date.now().toString(),
-      date: now.toISOString().split("T")[0],
-      status: "present",
-      checkInTime: now.toTimeString().split(" ")[0],
-      checkOutTime: null,
-      faceVerified: true,
-      locationVerified: true,
-      checkOutFaceVerified: false,
-      checkOutLocationVerified: false,
-      distance: locationData?.distance || 0,
-      checkOutDistance: null,
-      verificationMethod: "Face + Geo-fence",
-      totalHoursWorked: null,
-    };
+    const today = format(now, "yyyy-MM-dd");
 
-    setAttendanceHistory((prev) => [newRecord, ...prev]);
+    const { error } = await supabase.from("attendance").insert({
+      user_id: user.id,
+      date: today,
+      check_in_time: now.toISOString(),
+      status: now.getHours() >= 10 ? "late" : "present",
+      location_lat: locationData?.latitude || null,
+      location_lng: locationData?.longitude || null,
+    });
+
+    if (error) {
+      if (error.code === "23505") {
+        toast.error("Attendance already marked for today");
+      } else {
+        toast.error("Failed to save attendance");
+        console.error(error);
+      }
+      return;
+    }
+
     setTodayMarked(true);
-  }, [locationData]);
+    toast.success("Check-in recorded successfully!");
+    fetchHistory();
+  }, [user, locationData, fetchHistory]);
 
-  const confirmCheckOut = useCallback(() => {
+  const confirmCheckOut = useCallback(async () => {
+    if (!user) return;
     const now = new Date();
-    const checkOutTime = now.toTimeString().split(" ")[0];
+    const today = format(now, "yyyy-MM-dd");
 
-    setAttendanceHistory((prev) =>
-      prev.map((record) => {
-        const today = new Date().toISOString().split("T")[0];
-        if (record.date === today && record.checkInTime && !record.checkOutTime) {
-          const duration = calculateDuration(record.checkInTime, checkOutTime);
-          return {
-            ...record,
-            checkOutTime,
-            checkOutFaceVerified: true,
-            checkOutLocationVerified: true,
-            checkOutDistance: locationData?.distance || 0,
-            totalHoursWorked: duration,
-          };
-        }
-        return record;
-      })
-    );
+    const { error } = await supabase
+      .from("attendance")
+      .update({ check_out_time: now.toISOString() })
+      .eq("user_id", user.id)
+      .eq("date", today)
+      .is("check_out_time", null);
+
+    if (error) {
+      toast.error("Failed to save check-out");
+      console.error(error);
+      return;
+    }
+
     setTodayCheckedOut(true);
-  }, [locationData]);
+    toast.success("Check-out recorded successfully!");
+    fetchHistory();
+  }, [user, fetchHistory]);
 
   const resetFlow = useCallback(() => {
     setCurrentStep("disclaimer");
