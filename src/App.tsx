@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { ProfileCompletionGuard } from "@/components/auth/ProfileCompletionGuard";
 import { AdminRoute } from "@/components/auth/AdminRoute";
 import { OrganizationRoute } from "@/components/auth/OrganizationRoute";
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -27,12 +28,17 @@ import TimesheetPage from "./pages/TimesheetPage";
 import RoomBookingPage from "./pages/RoomBookingPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import EmployeeProjectsPage from "./pages/EmployeeProjectsPage";
+import CompleteProfilePage from "./pages/CompleteProfilePage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
 const ProtectedWithLayout = ({ children }: { children: React.ReactNode }) => (
-  <ProtectedRoute><AppLayout>{children}</AppLayout></ProtectedRoute>
+  <ProtectedRoute>
+    <ProfileCompletionGuard>
+      <AppLayout>{children}</AppLayout>
+    </ProfileCompletionGuard>
+  </ProtectedRoute>
 );
 
 const App = () => {
@@ -50,6 +56,7 @@ const App = () => {
             <Routes>
               <Route path="/auth" element={<AuthPage />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
+              <Route path="/complete-profile" element={<ProtectedRoute><CompleteProfilePage /></ProtectedRoute>} />
               <Route path="/install" element={<InstallPage />} />
               <Route path="/" element={<ProtectedWithLayout><Index /></ProtectedWithLayout>} />
               <Route path="/tasks" element={<ProtectedWithLayout><TasksPage /></ProtectedWithLayout>} />

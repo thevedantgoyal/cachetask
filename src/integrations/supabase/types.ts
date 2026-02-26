@@ -274,57 +274,75 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          bio: string | null
           created_at: string
           department: string | null
           email: string
           full_name: string
           id: string
           job_title: string | null
+          joining_date: string | null
           linkedin_url: string | null
           location: string | null
           manager_id: string | null
+          other_social_links: Json | null
           phone: string | null
+          profile_completed: boolean
+          resume_url: string | null
           status: string | null
           team_id: string | null
           updated_at: string
           user_id: string
           work_hours: string | null
+          working_status: string
         }
         Insert: {
           avatar_url?: string | null
+          bio?: string | null
           created_at?: string
           department?: string | null
           email: string
           full_name: string
           id?: string
           job_title?: string | null
+          joining_date?: string | null
           linkedin_url?: string | null
           location?: string | null
           manager_id?: string | null
+          other_social_links?: Json | null
           phone?: string | null
+          profile_completed?: boolean
+          resume_url?: string | null
           status?: string | null
           team_id?: string | null
           updated_at?: string
           user_id: string
           work_hours?: string | null
+          working_status?: string
         }
         Update: {
           avatar_url?: string | null
+          bio?: string | null
           created_at?: string
           department?: string | null
           email?: string
           full_name?: string
           id?: string
           job_title?: string | null
+          joining_date?: string | null
           linkedin_url?: string | null
           location?: string | null
           manager_id?: string | null
+          other_social_links?: Json | null
           phone?: string | null
+          profile_completed?: boolean
+          resume_url?: string | null
           status?: string | null
           team_id?: string | null
           updated_at?: string
           user_id?: string
           work_hours?: string | null
+          working_status?: string
         }
         Relationships: [
           {
