@@ -8,7 +8,7 @@ import { VerificationStatus } from "@/hooks/useAttendance";
 interface FaceVerificationProps {
   status: VerificationStatus;
   errorMessage: string | null;
-  onVerify: () => Promise<boolean>;
+  onVerify: (capturedImageBase64: string) => Promise<boolean>;
   onRetry: () => void;
 }
 
@@ -19,6 +19,7 @@ export const FaceVerification = ({
   onRetry,
 }: FaceVerificationProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
 
@@ -62,6 +63,29 @@ export const FaceVerification = ({
     }
   }, [status, stopCamera]);
 
+  const captureImage = useCallback((): string | null => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas) return null;
+
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL("image/jpeg", 0.8);
+  }, []);
+
+  const handleVerify = useCallback(async () => {
+    const imageData = captureImage();
+    if (!imageData) {
+      setCameraError("Failed to capture image. Please try again.");
+      return;
+    }
+    await onVerify(imageData);
+  }, [captureImage, onVerify]);
+
   const handleRetry = () => {
     onRetry();
     startCamera();
@@ -74,6 +98,9 @@ export const FaceVerification = ({
       exit={{ opacity: 0, x: -20 }}
       className="space-y-6"
     >
+      {/* Hidden canvas for image capture */}
+      <canvas ref={canvasRef} className="hidden" />
+
       <Card>
         <CardHeader className="pb-4">
           <div className="flex items-center gap-3">
@@ -127,7 +154,7 @@ export const FaceVerification = ({
                     <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
                     <p className="font-medium">Verifying face...</p>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Please hold still
+                      Comparing with your profile photo
                     </p>
                   </div>
                 )}
@@ -203,7 +230,7 @@ export const FaceVerification = ({
           {/* Actions */}
           <div className="flex gap-3">
             {status === "pending" && !cameraError && (
-              <Button onClick={onVerify} className="flex-1 h-12" size="lg">
+              <Button onClick={handleVerify} className="flex-1 h-12" size="lg">
                 <Camera className="w-5 h-5 mr-2" />
                 Capture & Verify
               </Button>

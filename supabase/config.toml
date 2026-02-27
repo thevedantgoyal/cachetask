@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.calculate-performance]
 verify_jwt = false
+
+[functions.verify-face]
+verify_jwt = false
