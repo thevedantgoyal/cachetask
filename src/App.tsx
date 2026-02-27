@@ -30,6 +30,7 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import EmployeeProjectsPage from "./pages/EmployeeProjectsPage";
 import CompleteProfilePage from "./pages/CompleteProfilePage";
 import TaskDetailPage from "./pages/TaskDetailPage";
+import AdminEmployeeDetailPage from "./pages/AdminEmployeeDetailPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -74,6 +75,7 @@ const App = () => {
               <Route path="/manager" element={<ProtectedWithLayout><ManagerDashboard /></ProtectedWithLayout>} />
               <Route path="/reports" element={<OrganizationRoute><AppLayout><ReportsPage /></AppLayout></OrganizationRoute>} />
               <Route path="/admin" element={<AdminRoute><AppLayout><AdminDashboard /></AppLayout></AdminRoute>} />
+              <Route path="/admin/employees/:id" element={<AdminRoute><AppLayout><AdminEmployeeDetailPage /></AppLayout></AdminRoute>} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

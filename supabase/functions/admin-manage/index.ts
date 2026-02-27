@@ -31,7 +31,24 @@ interface GetManagersRequest {
   action: "get-managers";
 }
 
-type AdminRequest = UpdateEmployeeRequest | AssignRoleRequest | GetAllEmployeesRequest | GetManagersRequest;
+interface GetEmployeeRequest {
+  action: "get-employee";
+  employee_profile_id: string;
+}
+
+interface ResetPasswordRequest {
+  action: "reset-password";
+  user_id: string;
+  new_password: string;
+}
+
+type AdminRequest =
+  | UpdateEmployeeRequest
+  | AssignRoleRequest
+  | GetAllEmployeesRequest
+  | GetManagersRequest
+  | GetEmployeeRequest
+  | ResetPasswordRequest;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -101,6 +118,35 @@ Deno.serve(async (req) => {
 
       console.log(`Updating employee ${employee_profile_id}:`, updates);
 
+      // Hierarchy validation: prevent self-manager
+      if (updates.manager_id && updates.manager_id === employee_profile_id) {
+        return new Response(
+          JSON.stringify({ error: "An employee cannot be their own manager" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Circular reference check
+      if (updates.manager_id) {
+        let currentManagerId: string | null = updates.manager_id;
+        const visited = new Set<string>([employee_profile_id]);
+        while (currentManagerId) {
+          if (visited.has(currentManagerId)) {
+            return new Response(
+              JSON.stringify({ error: "Circular reporting structure detected" }),
+              { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+          visited.add(currentManagerId);
+          const { data: mgrProfile } = await supabaseAdmin
+            .from("profiles")
+            .select("manager_id")
+            .eq("id", currentManagerId)
+            .single();
+          currentManagerId = mgrProfile?.manager_id ?? null;
+        }
+      }
+
       const { error } = await supabaseAdmin
         .from("profiles")
         .update(updates)
@@ -152,7 +198,6 @@ Deno.serve(async (req) => {
     if (action === "get-all-employees") {
       console.log("Fetching all employees");
 
-      // Fetch profiles and roles separately since there's no direct FK
       const { data: profiles, error: profilesError } = await supabaseAdmin
         .from("profiles")
         .select("*")
@@ -166,7 +211,6 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Fetch all user roles
       const { data: roles, error: rolesError } = await supabaseAdmin
         .from("user_roles")
         .select("user_id, role");
@@ -179,7 +223,6 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Map roles to profiles
       const rolesMap = new Map<string, { role: string }[]>();
       roles?.forEach((r) => {
         if (!rolesMap.has(r.user_id)) {
@@ -204,12 +247,7 @@ Deno.serve(async (req) => {
 
       const { data: managers, error } = await supabaseAdmin
         .from("profiles")
-        .select(`
-          id,
-          full_name,
-          job_title,
-          user_id
-        `)
+        .select(`id, full_name, job_title, user_id`)
         .order("full_name");
 
       if (error) {
@@ -221,6 +259,90 @@ Deno.serve(async (req) => {
 
       return new Response(
         JSON.stringify({ managers }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (action === "get-employee") {
+      const { employee_profile_id } = body as GetEmployeeRequest;
+      console.log("Fetching employee:", employee_profile_id);
+
+      const { data: profile, error: profileError } = await supabaseAdmin
+        .from("profiles")
+        .select("*")
+        .eq("id", employee_profile_id)
+        .single();
+
+      if (profileError || !profile) {
+        return new Response(
+          JSON.stringify({ error: "Employee not found" }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Get role
+      const { data: userRoles } = await supabaseAdmin
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", profile.user_id);
+
+      // Get manager name
+      let managerName: string | null = null;
+      if (profile.manager_id) {
+        const { data: mgr } = await supabaseAdmin
+          .from("profiles")
+          .select("full_name")
+          .eq("id", profile.manager_id)
+          .single();
+        managerName = mgr?.full_name ?? null;
+      }
+
+      return new Response(
+        JSON.stringify({
+          employee: {
+            ...profile,
+            user_roles: userRoles || [],
+            manager_name: managerName,
+          },
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (action === "reset-password") {
+      const { user_id, new_password } = body as ResetPasswordRequest;
+      console.log("Resetting password for user:", user_id);
+
+      // Validate password strength
+      if (!new_password || new_password.length < 8) {
+        return new Response(
+          JSON.stringify({ error: "Password must be at least 8 characters" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (!/[A-Z]/.test(new_password) || !/[0-9]/.test(new_password)) {
+        return new Response(
+          JSON.stringify({ error: "Password must contain at least one uppercase letter and one number" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Use Supabase Auth admin API to update password (handles hashing securely)
+      const { error } = await supabaseAdmin.auth.admin.updateUserById(user_id, {
+        password: new_password,
+      });
+
+      if (error) {
+        console.error("Password reset error:", error);
+        return new Response(
+          JSON.stringify({ error: error.message }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({ message: "Password reset successfully" }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
