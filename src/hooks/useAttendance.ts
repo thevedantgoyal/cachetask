@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -90,6 +90,8 @@ export const useAttendance = () => {
   const [attendanceHistory, setAttendanceHistory] = useState<AttendanceRecord[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [workingDurationSeconds, setWorkingDurationSeconds] = useState(0);
+  const faceRetryCount = useRef(0);
+  const MAX_FACE_RETRIES = 3;
 
   const officeRadius = OFFICE_LOCATION.radius;
 
@@ -162,6 +164,7 @@ export const useAttendance = () => {
     setLocationStatus("pending");
     setLocationData(null);
     setErrorMessage(null);
+    faceRetryCount.current = 0;
   }, []);
 
   const startCheckOutFlow = useCallback(() => {
@@ -171,25 +174,68 @@ export const useAttendance = () => {
     setLocationStatus("pending");
     setLocationData(null);
     setErrorMessage(null);
+    faceRetryCount.current = 0;
   }, []);
 
-  const simulateFaceVerification = useCallback(async (): Promise<boolean> => {
-    setFaceStatus("verifying");
-    await new Promise((resolve) => setTimeout(resolve, 2500));
-    const success = Math.random() > 0.15;
-
-    if (success) {
-      setFaceStatus("success");
-      setCurrentStep("location");
-      return true;
-    } else {
+  const verifyFaceWithBackend = useCallback(async (capturedImageBase64: string): Promise<boolean> => {
+    if (faceRetryCount.current >= MAX_FACE_RETRIES) {
       setFaceStatus("failed");
-      setErrorMessage("Face verification failed. Please ensure good lighting and try again.");
+      setErrorMessage("Maximum retry attempts reached. Please contact your administrator.");
+      return false;
+    }
+
+    setFaceStatus("verifying");
+    faceRetryCount.current += 1;
+
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (!token) {
+        setFaceStatus("failed");
+        setErrorMessage("Session expired. Please log in again.");
+        return false;
+      }
+
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/verify-face`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            capturedImage: capturedImageBase64,
+            timestamp: Date.now(),
+          }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (result.faceVerified) {
+        setFaceStatus("success");
+        setCurrentStep("location");
+        return true;
+      } else {
+        setFaceStatus("failed");
+        setErrorMessage(result.message || "Face verification failed. Please try again.");
+        return false;
+      }
+    } catch (err) {
+      console.error("Face verification error:", err);
+      setFaceStatus("failed");
+      setErrorMessage("Face verification service unavailable. Please try again.");
       return false;
     }
   }, []);
 
   const retryFaceVerification = useCallback(() => {
+    if (faceRetryCount.current >= MAX_FACE_RETRIES) {
+      setErrorMessage("Maximum retry attempts reached. Please contact your administrator.");
+      return;
+    }
     setFaceStatus("pending");
     setErrorMessage(null);
   }, []);
@@ -321,7 +367,7 @@ export const useAttendance = () => {
     formattedWorkingDuration,
     startAttendanceFlow,
     startCheckOutFlow,
-    simulateFaceVerification,
+    verifyFaceWithBackend,
     retryFaceVerification,
     verifyLocation,
     confirmAttendance,

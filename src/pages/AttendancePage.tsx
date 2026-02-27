@@ -16,7 +16,7 @@ const AttendancePage = () => {
     currentStep, activeFlowType, faceStatus, locationStatus, locationData,
     todayMarked, todayCheckedOut, attendanceHistory, errorMessage, officeRadius,
     formattedWorkingDuration, startAttendanceFlow, startCheckOutFlow,
-    simulateFaceVerification, retryFaceVerification, verifyLocation,
+    verifyFaceWithBackend, retryFaceVerification, verifyLocation,
     confirmAttendance, confirmCheckOut, resetFlow, getTodayAttendance,
   } = useAttendance();
 
@@ -56,7 +56,7 @@ const AttendancePage = () => {
       ) : (
         <AnimatePresence mode="wait">
           {currentStep === "face" && (
-            <FaceVerification key="face" status={faceStatus} errorMessage={errorMessage} onVerify={simulateFaceVerification} onRetry={retryFaceVerification} />
+            <FaceVerification key="face" status={faceStatus} errorMessage={errorMessage} onVerify={verifyFaceWithBackend} onRetry={retryFaceVerification} />
           )}
           {currentStep === "location" && (
             <LocationVerification key="location" status={locationStatus} locationData={locationData} officeRadius={officeRadius} errorMessage={errorMessage} onVerify={verifyLocation} />
