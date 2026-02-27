@@ -63,6 +63,9 @@ const employeeSchema = z.object({
   job_title: z.string().optional(),
   department: z.string().optional(),
   location: z.string().optional(),
+  password: z.string().min(8, "Password must be at least 8 characters")
+    .regex(/[A-Z]/, "Must contain at least one uppercase letter")
+    .regex(/[0-9]/, "Must contain at least one number"),
 });
 
 const containerVariants = {
@@ -175,6 +178,8 @@ bob@company.com,Bob Wilson,Team Lead,Design,Remote,team_lead`;
     department: "",
     location: "",
     manager_id: "",
+    role: "employee",
+    password: "",
   });
 
   const fetchEmployees = useCallback(async () => {
@@ -252,6 +257,8 @@ bob@company.com,Bob Wilson,Team Lead,Design,Remote,team_lead`;
               department: newEmployee.department || undefined,
               location: newEmployee.location || undefined,
               manager_id: newEmployee.manager_id || undefined,
+              role: newEmployee.role || undefined,
+              password: newEmployee.password,
             },
           ],
         },
@@ -261,7 +268,7 @@ bob@company.com,Bob Wilson,Team Lead,Design,Remote,team_lead`;
 
       if (response.data?.success?.length > 0) {
         toast.success(`Employee ${newEmployee.email} onboarded successfully!`);
-        setNewEmployee({ email: "", full_name: "", job_title: "", department: "", location: "", manager_id: "" });
+        setNewEmployee({ email: "", full_name: "", job_title: "", department: "", location: "", manager_id: "", role: "employee", password: "" });
         fetchEmployees();
       } else if (response.data?.failed?.length > 0) {
         toast.error(`Failed: ${response.data.failed[0].error}`);
@@ -568,6 +575,13 @@ bob@company.com,Bob Wilson,Team Lead,Design,Remote,team_lead`;
                   className="w-full p-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
                 <input
+                  type="password"
+                  placeholder="Password *"
+                  value={newEmployee.password}
+                  onChange={(e) => setNewEmployee({ ...newEmployee, password: e.target.value })}
+                  className="w-full p-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+                <input
                   type="text"
                   placeholder="Job Title"
                   value={newEmployee.job_title}
@@ -589,19 +603,41 @@ bob@company.com,Bob Wilson,Team Lead,Design,Remote,team_lead`;
                   className="w-full p-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
                 <select
-                  value={newEmployee.manager_id}
-                  onChange={(e) => setNewEmployee({ ...newEmployee, manager_id: e.target.value })}
+                  value={newEmployee.role}
+                  onChange={(e) => {
+                    const role = e.target.value;
+                    setNewEmployee({
+                      ...newEmployee,
+                      role,
+                      manager_id: ["manager", "admin"].includes(role) ? "" : newEmployee.manager_id,
+                    });
+                  }}
                   className="w-full p-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
                 >
-                  <option value="">Select Manager (optional)</option>
-                  {managers.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.full_name} {m.job_title ? `- ${m.job_title}` : ""}
-                    </option>
-                  ))}
+                  <option value="employee">Employee</option>
+                  <option value="team_lead">Team Lead</option>
+                  <option value="manager">Manager</option>
+                  <option value="hr">HR</option>
                 </select>
+                {!["manager", "admin"].includes(newEmployee.role) && (
+                  <select
+                    value={newEmployee.manager_id}
+                    onChange={(e) => setNewEmployee({ ...newEmployee, manager_id: e.target.value })}
+                    className="w-full p-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  >
+                    <option value="">Select Manager {newEmployee.role === "employee" ? "*" : "(optional)"}</option>
+                    {managers.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.full_name} {m.job_title ? `- ${m.job_title}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
-              <Button onClick={handleAddSingleEmployee} disabled={bulkLoading} className="mt-4">
+              <p className="text-xs text-muted-foreground mt-2">
+                Password: min 8 chars, 1 uppercase, 1 number
+              </p>
+              <Button onClick={handleAddSingleEmployee} disabled={bulkLoading} className="mt-3">
                 {bulkLoading ? "Adding..." : "Add Employee"}
               </Button>
             </motion.div>
@@ -658,7 +694,7 @@ bob@company.com,Bob Wilson,Team Lead,Design,Remote,team_lead`;
               ) : (
                 <div className="space-y-3">
                   {filteredEmployees.map((emp) => (
-                    <div key={emp.id} className="flex items-center justify-between p-4 bg-muted/50 rounded-xl hover:bg-muted/80 transition-colors">
+                    <div key={emp.id} className="flex items-center justify-between p-4 bg-muted/50 rounded-xl hover:bg-muted/80 transition-colors cursor-pointer" onClick={() => navigate(`/admin/employees/${emp.id}`)}>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">{emp.full_name}</p>
                         <p className="text-sm text-muted-foreground truncate">{emp.email}</p>
